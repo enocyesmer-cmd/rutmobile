@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Rutmovil</title>
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="description" content="Rutas y expresos de transporte en tiempo real. Elige la ruta que mejor te lleve en tu viaje.">
 <meta name="theme-color" content="#1423ff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1018c9" media="(prefers-color-scheme: dark)">
@@ -95,7 +96,7 @@
       <button class="tchip" data-t="Mayoreo" aria-pressed="false">Mayoreo</button>
       <button class="tchip" data-t="Israel Lewites" aria-pressed="false">Israel Lewites</button>
     </div>
-    <div class="board" id="board"></div>
+    <div class="grid" id="board"></div>
   </section>
 
   <p class="foot">Datos de ejemplo: los buses y las salidas se simulan en esta página. Para ver unidades reales hay que conectar Rutmovil a la fuente de datos de las rutas.</p>
@@ -104,6 +105,7 @@
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
 <script src="script.js"></script>
+<script src="nicaragua.js"></script>
 <script src="map.js"></script>
 </body>
 </html>

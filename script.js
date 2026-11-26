@@ -16,12 +16,12 @@
   ];
 
   var expresos = [
-    { id: 'mas', dest: 'Masaya', terminal: 'Terminal Mercado Huembes', gate: 3, first: 300, last: 1200, every: 15 },
-    { id: 'gra', dest: 'Granada', terminal: 'Terminal Mercado Huembes', gate: 5, first: 305, last: 1170, every: 20 },
-    { id: 'leo', dest: 'León', terminal: 'Terminal Israel Lewites', gate: 2, first: 300, last: 1140, every: 30 },
-    { id: 'jin', dest: 'Jinotepe', terminal: 'Terminal Mercado Huembes', gate: 7, first: 330, last: 1110, every: 40 },
-    { id: 'est', dest: 'Estelí', terminal: 'Terminal Mayoreo', gate: 4, first: 300, last: 1080, every: 60 },
-    { id: 'mat', dest: 'Matagalpa', terminal: 'Terminal Mayoreo', gate: 6, first: 315, last: 1050, every: 60 }
+    { id: 'mas', dest: 'Masaya', terminal: 'Terminal Mercado Huembes', gate: 3, first: 300, last: 1200, every: 15, dur: 40 },
+    { id: 'gra', dest: 'Granada', terminal: 'Terminal Mercado Huembes', gate: 5, first: 305, last: 1170, every: 20, dur: 60 },
+    { id: 'leo', dest: 'León', terminal: 'Terminal Israel Lewites', gate: 2, first: 300, last: 1140, every: 30, dur: 90 },
+    { id: 'jin', dest: 'Jinotepe', terminal: 'Terminal Mercado Huembes', gate: 7, first: 330, last: 1110, every: 40, dur: 60 },
+    { id: 'est', dest: 'Estelí', terminal: 'Terminal Mayoreo', gate: 4, first: 300, last: 1080, every: 60, dur: 150 },
+    { id: 'mat', dest: 'Matagalpa', terminal: 'Terminal Mayoreo', gate: 6, first: 315, last: 1050, every: 60, dur: 150 }
   ];
 
   var pestanaActual = 'rutas';
@@ -82,6 +82,8 @@
     calcularLlegada: calcularLlegada,
     velocidadReal: velocidadReal,
     paradaElegida: paradaElegida,
+    expresos: expresos,
+    calcularRetraso: function (expreso, numero) { return calcularRetraso(expreso, numero); },
     mostrarLlegada: function (segundos) { return mostrarLlegada(segundos); }
   };
 
@@ -301,9 +303,9 @@
       '<div class="acciones"><button class="avisar" data-act="avisar" aria-pressed="false">' +
       '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7zM10 20a2 2 0 0 0 4 0" stroke-linejoin="round"/></svg>' +
       '<span data-k="avisarTxt">Avísame cuando falten 2 min</span></button>' +
-      '<a class="compartir" href="' + enlaceWhatsapp + '" target="_blank" rel="noopener">' +
+      '<a class="compartir" data-act="compartir" href="' + enlaceWhatsapp + '" target="_blank" rel="noopener">' +
       '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" stroke-linejoin="round"/></svg>' +
-      'Compartir por WhatsApp</a></div>' +
+      'Compartir</a></div>' +
       '<p class="hint">Toca otra parada del recorrido para ver cuándo llega el bus ahí.</p></div></div></div>';
   }
 
@@ -404,7 +406,6 @@
 
   function mostrarEsqueletos() {
     var tarjetas = '';
-    var filas = '';
 
     for (var i = 0; i < 6; i++) {
       tarjetas += '<div class="card sk" style="--i:' + i + '"><div class="sk-row">' +
@@ -413,16 +414,8 @@
         '<span class="sk-eta"><span class="skel sk-t"></span><span class="skel sk-c"></span></span></div></div>';
     }
 
-    for (var j = 0; j < 5; j++) {
-      filas += '<li class="drow sk" style="--i:' + j + '">' +
-        '<span class="skel sk-hora"></span>' +
-        '<span class="sk-info"><span class="skel sk-l1"></span><span class="skel sk-l2"></span></span>' +
-        '<span class="sk-eta"><span class="skel sk-c"></span><span class="skel sk-t2"></span></span></li>';
-    }
-
     contenedorRutas.innerHTML = tarjetas;
-    buscar('#board').innerHTML = '<div class="bhead"><span>Hora</span><span>Destino</span><span>Estado</span></div>' +
-      '<ul class="blist">' + filas + '</ul>';
+    buscar('#board').innerHTML = tarjetas;
     buscar('#rcount').textContent = '';
     buscar('#ecount').textContent = '';
     contenedorRutas.setAttribute('aria-busy', 'true');
@@ -589,6 +582,16 @@
       var estrellaRuta = contenedorRutas.querySelector('[data-id="' + ruta.id + '"] .fav');
       if (estrellaRuta) estrellaRuta.focus();
       if (estrellaRuta && favoritos[ruta.id]) marcarTemporal(estrellaRuta, 'pop', 600);
+    } else if (accion === 'compartir') {
+      // Si el equipo tiene menú de compartir, se usa; si no, se abre el enlace de WhatsApp de siempre.
+      if (navigator.share) {
+        evento.preventDefault();
+        navigator.share({
+          title: 'Ruta ' + ruta.id + ' en Rutmovil',
+          text: 'Mira la ruta ' + ruta.id + ' (' + ruta.stops[0] + ' – ' + ruta.stops[ruta.stops.length - 1] + ') en Rutmovil',
+          url: location.href.split('#')[0] + '#ruta-' + ruta.id
+        }).catch(function () {});
+      }
     } else if (accion === 'avisar') {
       alternarAviso(ruta);
       actualizarTarjeta(ruta);
@@ -598,7 +601,7 @@
     }
   });
 
-  // Salidas de los expresos.
+  // Salidas de los expresos: tarjetas como las de las rutas.
   function calcularRetraso(expreso, numeroSalida) {
     var valor = (expreso.id.charCodeAt(0) + expreso.id.charCodeAt(2) + numeroSalida * 7) % 9;
     return valor === 0 ? 10 : (valor === 3 ? 5 : 0);
@@ -608,6 +611,8 @@
   // así las animaciones no se reinician.
   var ultimoTablero = null;
   var terminalElegida = '';
+  var expresoAbierto = null;
+  var altoExpreso = 144;
 
   function pintarTablero(html) {
     if (html === ultimoTablero) return;
@@ -616,89 +621,223 @@
     buscar('#board').innerHTML = html;
   }
 
+  function formatoHoraExpreso(minutos) {
+    return mostrarHora(Math.floor(minutos / 60) % 24, Math.floor(minutos % 60 + 1e-6));
+  }
+
+  function horaCorta(minutos) {
+    var hora = Math.floor(minutos / 60) % 24;
+
+    return (hora % 12 === 0 ? 12 : hora % 12) + ':' + dosDigitos(Math.floor(minutos % 60 + 1e-6));
+  }
+
+  function textoFalta(falta) {
+    return falta < 1 ? 'Ahora' : Math.ceil(falta) + ' min';
+  }
+
+  function textoViaje(minutos) {
+    if (minutos < 60) return minutos + ' min';
+
+    return Math.floor(minutos / 60) + ' h' + (minutos % 60 ? ' ' + (minutos % 60) + ' min' : '');
+  }
+
+  // Todas las salidas del día de un expreso, con su retraso.
+  function salidasDeExpreso(expreso, minutosAhora) {
+    var lista = [];
+
+    for (var hora = expreso.first, numero = 0; hora <= expreso.last; hora += expreso.every, numero++) {
+      var retraso = calcularRetraso(expreso, numero);
+
+      lista.push({
+        numero: numero,
+        hora: hora,
+        retraso: retraso,
+        estimada: hora + retraso,
+        falta: hora + retraso - minutosAhora
+      });
+    }
+
+    return lista;
+  }
+
+  function estadoSalida(salida) {
+    if (salida.retraso > 0) return { texto: 'Retraso +' + salida.retraso + ' min', clase: 'warn' };
+    if (salida.falta <= 1) return { texto: 'Saliendo', clase: 'go' };
+    if (salida.falta <= 10) return { texto: 'Abordando', clase: 'go' };
+
+    return { texto: 'Puntual', clase: 'ok' };
+  }
+
+  function crearPanelExpreso(item, minutosAhora) {
+    var expreso = item.expreso;
+    var primera = item.proximas[0];
+    var enlace = location.href.split('#')[0] + '#expresos';
+    var mensaje = 'Mira los expresos a ' + expreso.dest + ' (' + expreso.terminal + ') en Rutmovil: ' + enlace;
+
+    var buses = item.enCamino.map(function (salida) {
+      return '<span class="bus" data-dep="' + salida.estimada + '" data-dur="' + expreso.dur +
+        '" style="left:1px;width:42px">' + horaCorta(salida.estimada) + '</span>';
+    }).join('');
+
+    var filas = item.enCamino.slice(0, 2).map(function (salida) {
+      return '<li><span class="bid">' + horaCorta(salida.estimada) + '</span><span class="bst">En camino</span>' +
+        '<span class="cd">' + Math.ceil(salida.estimada + expreso.dur - minutosAhora) + ' min</span></li>';
+    }).join('') + item.proximas.slice(0, 3).map(function (salida) {
+      return '<li><span class="bid">' + horaCorta(salida.estimada) + '</span><span class="bst">' +
+        estadoSalida(salida).texto + '</span><span class="cd">' + textoFalta(salida.falta) + '</span></li>';
+    }).join('');
+
+    return '<div class="panel" id="px-' + expreso.id + '"><div class="cols"><div><h3 class="ph">Recorrido en vivo</h3>' +
+      '<div class="line" style="height:' + (altoExpreso + altoParada) + 'px"><span class="track"></span>' +
+      '<div class="stop" style="top:0;--i:0"><span class="sdot"></span><span class="sname">' + expreso.terminal +
+      '</span><span class="seta">' + (primera ? 'sale ' + textoFalta(primera.falta) : '–') + '</span></div>' +
+      '<div class="stop" style="top:' + altoExpreso + 'px;--i:1"><span class="sdot"></span><span class="sname">' + expreso.dest +
+      '</span><span class="seta">~' + textoViaje(expreso.dur) + '</span></div>' + buses + '</div></div>' +
+      '<div><h3 class="ph">Próximas salidas</h3><ol class="next">' +
+      (filas || '<li><span class="bst">No hay más salidas hoy. Los expresos salen desde las 5:00 a. m.</span></li>') + '</ol>' +
+      '<div class="acciones"><button type="button" class="avisar" data-act="mapa-exp">' +
+      '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6.5v13L9 17l6 3 6-2.5v-13L15 7zM9 4v13M15 7v13" stroke-linejoin="round"/></svg>' +
+      'Ver en el mapa</button>' +
+      '<a class="compartir" data-act="compartir-exp" href="https://wa.me/?text=' + encodeURIComponent(mensaje) + '" target="_blank" rel="noopener">' +
+      '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" stroke-linejoin="round"/></svg>' +
+      'Compartir</a></div>' +
+      '<p class="hint">Viaje aproximado de ' + textoViaje(expreso.dur) + '. Los buses en camino se calculan con la hora de salida.</p></div></div></div>';
+  }
+
+  function crearTarjetaExpreso(item, indice, minutosAhora) {
+    var expreso = item.expreso;
+    var primera = item.proximas[0];
+    var abierta = expreso.id === expresoAbierto;
+    var estado = primera ? estadoSalida(primera) : { texto: 'Sin más salidas hoy', clase: '' };
+    var avance = primera ? Math.min(Math.max(1 - Math.ceil(primera.falta) / expreso.every, 0), 1) : 0;
+
+    return '<article class="card' + (abierta ? ' open' : '') + '" data-id="' + expreso.id + '" style="--i:' + indice + '">' +
+      '<div class="head"><button class="row" data-act="toggle" aria-expanded="' + abierta + '"' +
+      (abierta ? ' aria-controls="px-' + expreso.id + '"' : '') + '>' +
+      '<span class="num"><span class="sr" style="position:absolute;left:-9999px">Expreso a </span>' + expreso.dest.slice(0, 3).toUpperCase() + '</span>' +
+      '<span class="info"><span class="name">' + expreso.dest + '</span><span class="od">' + expreso.terminal +
+      ' · Andén ' + expreso.gate + ' · cada ' + expreso.every + ' min</span></span>' +
+      '<span class="eta"><b>' + (primera ? textoFalta(primera.falta) : '–') + '</b><span class="at">' +
+      (primera ? 'sale ' + formatoHoraExpreso(primera.estimada) : (item.enCamino.length ? item.enCamino.length + ' en camino' : '')) +
+      '</span><span class="chip ' + estado.clase + '">' + estado.texto + '</span></span></button></div>' +
+      '<div class="prog' + (primera && primera.retraso ? ' late' : '') + (primera ? '' : ' none') + '" aria-hidden="true">' +
+      '<span class="prog-fill" style="width:' + (avance * 100) + '%"></span></div>' +
+      (abierta ? crearPanelExpreso(item, minutosAhora) : '') + '</article>';
+  }
+
+  // Mueve los buses del recorrido abierto según la hora (cada segundo, sin redibujar la tarjeta).
+  function posicionarBusesExpreso(minutosAhora) {
+    Array.prototype.forEach.call(buscar('#board').querySelectorAll('.bus[data-dep]'), function (bus) {
+      var avance = (minutosAhora - Number(bus.getAttribute('data-dep'))) / Number(bus.getAttribute('data-dur'));
+
+      bus.style.top = (28 + Math.min(Math.max(avance, 0), 1) * altoExpreso) + 'px';
+    });
+  }
+
   function mostrarExpresos() {
     if (cargando) return;
 
     var ahora = new Date();
     var minutosAhora = ahora.getHours() * 60 + ahora.getMinutes() + ahora.getSeconds() / 60;
     var texto = textoBusqueda.trim().toLowerCase();
-    var salidas = [];
 
-    expresos.forEach(function (expreso) {
-      if (terminalElegida && expreso.terminal.indexOf(terminalElegida) === -1) return;
-      if (texto && (expreso.dest + ' ' + expreso.terminal).toLowerCase().indexOf(texto) === -1) return;
+    var items = expresos.filter(function (expreso) {
+      if (terminalElegida && expreso.terminal.indexOf(terminalElegida) === -1) return false;
+      if (texto && (expreso.dest + ' ' + expreso.terminal).toLowerCase().indexOf(texto) === -1) return false;
 
-      for (var hora = expreso.first, numero = 0; hora <= expreso.last; hora += expreso.every, numero++) {
-        var retraso = calcularRetraso(expreso, numero);
-        var horaEstimada = hora + retraso;
-        var falta = horaEstimada - minutosAhora;
+      return true;
+    }).map(function (expreso) {
+      var salidas = salidasDeExpreso(expreso, minutosAhora);
 
-        if (falta > -1 && falta < 240) {
-          salidas.push({
-            expreso: expreso,
-            hora: hora,
-            estimada: horaEstimada,
-            retraso: retraso,
-            falta: falta
-          });
-        }
-      }
+      return {
+        expreso: expreso,
+        proximas: salidas.filter(function (salida) { return salida.falta > -1; }),
+        enCamino: salidas.filter(function (salida) {
+          return salida.estimada <= minutosAhora && minutosAhora < salida.estimada + expreso.dur;
+        })
+      };
     });
 
-    salidas.sort(function (a, b) {
-      return a.estimada - b.estimada;
+    // El que sale más pronto va primero; los que ya no tienen salidas, al final.
+    items.sort(function (a, b) {
+      var fa = a.proximas[0] ? a.proximas[0].estimada : Infinity;
+      var fb = b.proximas[0] ? b.proximas[0].estimada : Infinity;
+
+      return fa === fb ? 0 : (fa < fb ? -1 : 1);
     });
 
-    salidas = salidas.slice(0, 10);
+    var enViaje = items.reduce(function (total, item) { return total + item.enCamino.length; }, 0);
 
-    buscar('#ecount').textContent =
-      salidas.length + (salidas.length === 1 ? ' salida próxima' : ' salidas próximas');
+    buscar('#ecount').textContent = items.length + (items.length === 1 ? ' expreso' : ' expresos') +
+      (enViaje ? ' · ' + enViaje + (enViaje === 1 ? ' en camino' : ' en camino') : '');
 
-    var encabezado = '<div class="bhead"><span>Hora</span><span>Destino</span><span>Estado</span></div>';
-
-    if (!salidas.length) {
-      pintarTablero(encabezado + '<div class="bempty">' +
-        (texto
-          ? 'No hay salidas que coincidan con tu búsqueda.'
-          : (terminalElegida
-            ? 'No hay salidas de esta terminal en las próximas 4 horas.'
-            : 'No hay salidas en las próximas 4 horas. Los expresos salen desde las 5:00 a. m.')) +
-        '</div>');
+    if (!items.length) {
+      pintarTablero('<div class="empty">' +
+        (texto ? 'No hay expresos que coincidan con tu búsqueda.' : 'No hay expresos en esta terminal.') + '</div>');
       return;
     }
 
-    var formatoHora = function (minutos) {
-      return mostrarHora(Math.floor(minutos / 60) % 24, Math.floor(minutos % 60 + 1e-6));
-    };
+    pintarTablero(items.map(function (item, indice) {
+      return crearTarjetaExpreso(item, indice, minutosAhora);
+    }).join(''));
 
-    pintarTablero(encabezado + '<ul class="blist">' + salidas.map(function (salida, indice) {
-      var etiqueta;
-      var clase;
+    posicionarBusesExpreso(minutosAhora);
+  }
 
-      if (salida.retraso > 0) {
-        etiqueta = 'Retraso +' + salida.retraso + ' min';
-        clase = 'warn';
-      } else if (salida.falta <= 1) {
-        etiqueta = 'Saliendo';
-        clase = 'go';
-      } else if (salida.falta <= 10) {
-        etiqueta = 'Abordando';
-        clase = 'go';
-      } else {
-        etiqueta = 'Puntual';
-        clase = 'ok';
+  // Abrir/cerrar un expreso, verlo en el mapa y compartirlo.
+  buscar('#board').addEventListener('click', function (evento) {
+    var boton = evento.target.closest('[data-act]');
+    if (!boton) return;
+
+    var tarjeta = boton.closest('.card');
+    if (!tarjeta) return;
+
+    var expreso = expresos.filter(function (item) {
+      return item.id === tarjeta.getAttribute('data-id');
+    })[0];
+
+    if (!expreso) return;
+
+    var accion = boton.getAttribute('data-act');
+
+    if (accion === 'toggle') {
+      var enfocar = function () {
+        var fila = buscar('#board [data-id="' + expreso.id + '"] .row');
+        if (fila) fila.focus();
+      };
+
+      if (expresoAbierto === expreso.id) {
+        if (tarjeta.classList.contains('closing')) return;
+
+        cerrarSuave(tarjeta, function () {
+          if (expresoAbierto === expreso.id) {
+            expresoAbierto = null;
+            ultimoTablero = null;
+            mostrarExpresos();
+            enfocar();
+          }
+        });
+        return;
       }
 
-      var tiempoRestante = salida.falta < 1 ? 'ahora' : 'en ' + Math.ceil(salida.falta) + ' min';
-
-      return '<li class="drow" style="--i:' + indice + '"><span class="dt">' + formatoHora(salida.estimada) +
-        (salida.retraso ? '<s>' + formatoHora(salida.hora) + '</s>' : '') + '</span>' +
-        '<span class="dd"><b>' + salida.expreso.dest + '</b><span>' +
-        salida.expreso.terminal + ' · Andén ' + salida.expreso.gate + '</span></span>' +
-        '<span class="dst"><span class="chip ' + clase + '">' + etiqueta +
-        '</span><span class="dleft">' + tiempoRestante + '</span></span></li>';
-    }).join('') + '</ul>');
-  }
+      expresoAbierto = expreso.id;
+      ultimoTablero = null;
+      mostrarExpresos();
+      enfocar();
+      marcarTemporal(buscar('#board [data-id="' + expreso.id + '"]'), 'fresh', 1500);
+    } else if (accion === 'mapa-exp') {
+      if (window.RutmovilMapa) window.RutmovilMapa.verExpreso(expreso.id);
+    } else if (accion === 'compartir-exp') {
+      if (navigator.share) {
+        evento.preventDefault();
+        navigator.share({
+          title: 'Expreso a ' + expreso.dest + ' en Rutmovil',
+          text: 'Mira los expresos a ' + expreso.dest + ' (' + expreso.terminal + ') en Rutmovil',
+          url: location.href.split('#')[0] + '#expresos'
+        }).catch(function () {});
+      }
+    }
+  });
 
   // Enlace directo a una ruta: tu-pagina#ruta-110 abre esa ruta.
   function abrirRutaDeHash() {

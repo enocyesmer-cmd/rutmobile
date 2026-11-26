@@ -1,6 +1,6 @@
 /* Service worker de Rutmovil: deja la app funcionando sin internet.
    Si cambias archivos de la página, sube el número de VERSION para que se actualice. */
-var VERSION = 'rutmovil-v2';
+var VERSION = 'rutmovil-v7';
 
 var ARCHIVOS = [
   './',
@@ -9,6 +9,7 @@ var ARCHIVOS = [
   'script.js',
   'map.css',
   'map.js',
+  'nicaragua.js',
   'manifest.webmanifest',
   'favicon.svg',
   'icon-192.png',

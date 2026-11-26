@@ -6,8 +6,16 @@
 (function () {
   var LEAFLET_JS = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';
   var LEAFLET_CSS = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css';
-  var MOSAICO_CLARO = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-  var MOSAICO_OSCURO = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+  // Por defecto el mapa usa OpenStreetMap, que NO pide clave.
+  // CARTO ahora exige una clave gratuita (carto.com/basemaps/apikey). Si quieres su diseño, pega tu clave aquí:
+  var CLAVE_CARTO = '';
+  var MOSAICO_OSM = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  var MOSAICO_CLARO = 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=' + CLAVE_CARTO;
+  var MOSAICO_OSCURO = 'https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=' + CLAVE_CARTO;
+  var ETIQUETAS_ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';
+  var CALLES_ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}';
+  var MOSAICO_SAT = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+  var ETIQUETAS_SAT = 'https://basemaps.cartocdn.com/rastertiles/dark_only_labels/{z}/{x}/{y}{r}.png?key=' + CLAVE_CARTO;
   var CLAVE_GEO = 'rutmovil-geo-v1';
   var CENTRO = [12.1364, -86.2514];
   var NICARAGUA = [[10.7, -87.7], [15.03, -82.55]];
@@ -21,6 +29,15 @@
     ['Ocotal', 13.6320, -86.4760], ['Somoto', 13.4800, -86.5830], ['San Carlos', 11.1220, -84.7780],
     ['Bluefields', 12.0130, -83.7640], ['Bilwi (Puerto Cabezas)', 14.0390, -83.3850]
   ];
+
+  // Destinos de los expresos (ciudades, coordenadas aproximadas). El origen sale de la terminal de cada expreso.
+  var DESTINOS = {
+    mas: [11.9744, -86.0952], gra: [11.9299, -85.9560], leo: [12.4379, -86.8780],
+    jin: [11.8500, -86.1990], est: [13.0910, -86.3540], mat: [12.9260, -85.9170]
+  };
+  var TERMINALES = {
+    'Huembes': [12.1212, -86.2402], 'Israel Lewites': [12.1395, -86.3320], 'Mayoreo': [12.1585, -86.1885]
+  };
 
   // Un color por ruta (en el orden en que aparecen en script.js).
   var COLORES = ['#2f6bff', '#e64980', '#0ca678', '#d9480f', '#9c36b5', '#1098ad'];
@@ -161,12 +178,34 @@
   }
 
   // ---- interfaz ----
+  // Silueta de Nicaragua para el botón "Ver todo el país", dibujada con el mismo contorno del mapa.
+  function iconoPais() {
+    var P = window.RutmovilNicaragua;
+
+    if (!P) return '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/></svg>';
+
+    var lats = P.contorno.map(function (p) { return p[0]; });
+    var lngs = P.contorno.map(function (p) { return p[1]; });
+    var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
+    var minLng = Math.min.apply(null, lngs), maxLng = Math.max.apply(null, lngs);
+    var escala = 19 / Math.max(maxLat - minLat, maxLng - minLng);
+    var ox = (24 - (maxLng - minLng) * escala) / 2;
+    var oy = (24 - (maxLat - minLat) * escala) / 2;
+    var d = P.contorno.map(function (p, i) {
+      return (i ? 'L' : 'M') + (ox + (p[1] - minLng) * escala).toFixed(1) + ' ' + (oy + (maxLat - p[0]) * escala).toFixed(1);
+    }).join('') + 'Z';
+
+    return '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '" class="rm-ic-fill"/></svg>';
+  }
+
   var iconos = {
     mapa: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6.5v13L9 17l6 3 6-2.5v-13L15 7zM9 4v13M15 7v13"/></svg>',
     cerrar: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
     ubicacion: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>',
-    pais: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>',
+    pais: iconoPais(),
     rutas: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/></svg>',
+    capas: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5"/></svg>',
+    sitios: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
     mas: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
     menos: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>'
   };
@@ -190,15 +229,16 @@
     '<div class="rm-top"><button type="button" class="rm-btn" id="rm-close" aria-label="Cerrar mapa">' + iconos.cerrar + '</button>' +
     '<div class="rm-chips" id="rm-chips" role="group" aria-label="Elegir ruta"></div></div>' +
     '<div class="rm-dock"><div class="rm-fabs">' +
-    '<button type="button" class="rm-btn" id="rm-nic" aria-label="Ver toda Nicaragua">' + iconos.pais + '</button>' +
+    '<button type="button" class="rm-btn rm-btn-pais" id="rm-nic" aria-label="Ver toda Nicaragua" title="Toda Nicaragua">' + iconos.pais + '</button>' +
     '<button type="button" class="rm-btn" id="rm-rutas" aria-label="Ver todas las rutas">' + iconos.rutas + '</button>' +
-    '<button type="button" class="rm-btn" id="rm-zin" aria-label="Acercar">' + iconos.mas + '</button>' +
-    '<button type="button" class="rm-btn" id="rm-zout" aria-label="Alejar">' + iconos.menos + '</button>' +
+    '<button type="button" class="rm-btn" id="rm-sitios" aria-label="Mostrar u ocultar sitios" aria-pressed="true" title="Sitios">' + iconos.sitios + '</button>' +
+    '<button type="button" class="rm-btn" id="rm-capas" aria-label="Cambiar a vista satélite" aria-pressed="false" title="Satélite">' + iconos.capas + '</button>' +
+    '<div class="rm-zoom"><button type="button" id="rm-zin" aria-label="Acercar">' + iconos.mas + '</button>' +
+    '<button type="button" id="rm-zout" aria-label="Alejar">' + iconos.menos + '</button></div>' +
     '<button type="button" class="rm-btn" id="rm-loc" aria-label="Mostrar mi ubicación" aria-pressed="false">' + iconos.ubicacion + '</button>' +
-    '</div><div class="rm-sheet"><div id="rm-ubic"></div><div id="rm-fijo"></div><div id="rm-vivo"></div>' +
+    '</div><div class="rm-sheet" id="rm-sheet"><button type="button" class="rm-grab" id="rm-grab" aria-label="Plegar panel" aria-expanded="true"><span></span></button><div id="rm-ubic"></div><div id="rm-fijo"></div><div id="rm-vivo"></div>' +
     '<p class="rm-estado" id="rm-estado" role="status"></p>' +
-    '<p class="rm-credit">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · ' +
-    '© <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a></p></div></div>';
+    '<p class="rm-credit" id="rm-credit"></p></div></div>';
   document.body.appendChild(panel);
 
   var $ = function (id) { return document.getElementById(id); };
@@ -208,11 +248,23 @@
   var cargandoMapa = null;
   var recorridosListos = false;
   var capaMosaico = null;
-  var mosaicoOscuro = null;
+  var claveMosaico = null;
+  var capaEtiquetas = null;
+  var capaCalles = null;
+  var satelite = false;
+  var capaSitios = null;
+  var marcasSitios = [];
+  var verSitios = true;
   var capaLineas = null;
   var capaParadas = null;
   var capaBuses = null;
   var capaUsuario = null;
+  var capaPais = null;
+  var mascara = null;
+  var bordeLuz = null;
+  var borde = null;
+  var capaCiudades = null;
+  var marcasCiudades = [];
   var info = {};
   var lineas = {};
   var marcadores = {};
@@ -227,6 +279,16 @@
   var quiereUbicacion = false;
   var centrarAlLlegar = false;
   var siguiendo = false;
+  var modo = 'rutas';
+  var selExp = null;
+  var infoExp = {};
+  var lineasExp = {};
+  var marcadoresExp = {};
+  var capaLineasExp = null;
+  var capaParadasExp = null;
+  var capaBusesExp = null;
+  var recorridosExpListos = false;
+  var pendiente = null;
   var rafId = null;
   var ultimoVivo = 0;
   var ultimoFoco = null;
@@ -312,12 +374,22 @@
   function crearMapa() {
     var L = window.L;
 
-    map = L.map('rm-map', { zoomControl: false, attributionControl: false, center: CENTRO, zoom: 12, minZoom: 6, maxBounds: [[9.0, -90.0], [16.5, -81.0]], maxBoundsViscosity: 0.8 });
+    map = L.map('rm-map', { zoomControl: false, attributionControl: false, center: CENTRO, zoom: 12, minZoom: 6, zoomSnap: 0.5, zoomDelta: 1, maxBounds: [[9.0, -90.0], [16.5, -81.0]], maxBoundsViscosity: 0.8 });
     map.on('dragstart', function () { if (siguiendo) { siguiendo = false; renderUbic(); } });
+    dibujarPais();
     capaLineas = L.layerGroup().addTo(map);
     capaParadas = L.layerGroup().addTo(map);
     capaBuses = L.layerGroup().addTo(map);
     capaUsuario = L.layerGroup().addTo(map);
+    capaLineasExp = L.layerGroup();
+    capaParadasExp = L.layerGroup();
+    capaBusesExp = L.layerGroup();
+    dibujarSitios();
+    map.on('zoomend', function () {
+      mostrarExpresosEnPais();
+      visibilidadSitios();
+      map.getContainer().classList.toggle('rm-lab', map.getZoom() >= 13);
+    });
     ponerMosaicos();
   }
 
@@ -325,15 +397,182 @@
     if (!map) return;
 
     var oscuro = esOscuro();
+    var clave = (satelite ? 's' : 'c') + (oscuro ? 'o' : 'l');
 
-    if (capaMosaico && mosaicoOscuro === oscuro) return;
+    if (capaMosaico && claveMosaico === clave) return;
     if (capaMosaico) map.removeLayer(capaMosaico);
+    if (capaEtiquetas) { map.removeLayer(capaEtiquetas); capaEtiquetas = null; }
+    if (capaCalles) { map.removeLayer(capaCalles); capaCalles = null; }
 
-    mosaicoOscuro = oscuro;
-    capaMosaico = window.L.tileLayer(oscuro ? MOSAICO_OSCURO : MOSAICO_CLARO, { subdomains: 'abcd', maxZoom: 19 }).addTo(map);
+    claveMosaico = clave;
+
+    var ref = { referrerPolicy: 'strict-origin-when-cross-origin', crossOrigin: true };
+    var osm = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+    var carto = '© <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>';
+    var esri = 'Imágenes © Esri';
+    var credito;
+
+    if (satelite) {
+      capaMosaico = window.L.tileLayer(MOSAICO_SAT, { maxZoom: 19, referrerPolicy: ref.referrerPolicy }).addTo(map);
+
+      if (CLAVE_CARTO) {
+        capaEtiquetas = window.L.tileLayer(ETIQUETAS_SAT, { maxZoom: 19, referrerPolicy: ref.referrerPolicy }).addTo(map);
+      } else {
+        capaEtiquetas = window.L.tileLayer(ETIQUETAS_ESRI, { maxZoom: 19, referrerPolicy: ref.referrerPolicy }).addTo(map);
+        capaCalles = window.L.tileLayer(CALLES_ESRI, { maxZoom: 19, referrerPolicy: ref.referrerPolicy }).addTo(map);
+        capaCalles.setZIndex(2);
+      }
+
+      capaEtiquetas.setZIndex(3);
+      credito = esri + (CLAVE_CARTO ? ' · ' + carto + ' · ' + osm : '');
+    } else if (CLAVE_CARTO) {
+      capaMosaico = window.L.tileLayer(oscuro ? MOSAICO_OSCURO : MOSAICO_CLARO, { maxZoom: 20, maxNativeZoom: 18, referrerPolicy: ref.referrerPolicy }).addTo(map);
+      credito = osm + ' · ' + carto;
+    } else {
+      capaMosaico = window.L.tileLayer(MOSAICO_OSM, {
+        maxZoom: 19, referrerPolicy: ref.referrerPolicy, className: oscuro ? 'rm-tinte-oscuro' : 'rm-tinte-claro'
+      }).addTo(map);
+      credito = osm;
+    }
+
+    $('rm-credit').innerHTML = credito;
     capaMosaico.setZIndex(1);
 
+    if (capaPais) estiloPais();
     if (capaLineas) estilos();
+    if (capaLineasExp) estilosExp();
+  }
+
+  // ---- Nicaragua: contorno, zona exterior atenuada y ciudades ----
+  function dibujarPais() {
+    var L = window.L;
+    var P = window.RutmovilNicaragua;
+
+    if (!P) return;
+
+    capaPais = L.layerGroup().addTo(map);
+    mascara = L.polygon([[[24, -100], [24, -70], [4, -70], [4, -100]], P.contorno], { stroke: false, interactive: false });
+    bordeLuz = L.polygon(P.contorno, { fill: false, weight: 14, lineJoin: 'round', interactive: false });
+    borde = L.polygon(P.contorno, { fill: false, weight: 2.5, lineJoin: 'round', interactive: false });
+    [mascara, bordeLuz, borde].forEach(function (capa) { capaPais.addLayer(capa); });
+
+    capaCiudades = L.layerGroup().addTo(map);
+    marcasCiudades = P.ciudades.map(function (c) {
+      var html = '<div class="rm-city t' + c[3] + (c[4] ? ' cap' : '') + '"><i></i><span>' + esc(c[0]) + '</span></div>';
+      var marca = L.marker([c[1], c[2]], {
+        icon: L.divIcon({ className: 'rm-city-wrap', html: html, iconSize: [0, 0] }),
+        keyboard: false, title: c[0], zIndexOffset: c[3] === 1 ? 300 : 100
+      });
+
+      marca.on('click', function () { map.flyTo([c[1], c[2]], Math.max(map.getZoom(), c[3] === 1 ? 11 : 12), { duration: 0.8 }); });
+
+      return { marca: marca, nivel: c[3], max: c[4] ? 12 : 13 };
+    });
+
+    map.on('zoomend', visibilidadCiudades);
+    visibilidadCiudades();
+    estiloPais();
+  }
+
+  function visibilidadCiudades() {
+    if (!capaCiudades) return;
+
+    var z = map.getZoom();
+
+    marcasCiudades.forEach(function (m) {
+      var minimo = m.nivel === 1 ? 6 : (m.nivel === 2 ? 8 : 10);
+      var ver = z >= minimo && z <= m.max;
+
+      if (ver && !capaCiudades.hasLayer(m.marca)) capaCiudades.addLayer(m.marca);
+      if (!ver && capaCiudades.hasLayer(m.marca)) capaCiudades.removeLayer(m.marca);
+    });
+  }
+
+  function estiloPais() {
+    if (!capaPais) return;
+
+    var oscuro = esOscuro();
+
+    mascara.setStyle({ fillColor: oscuro ? '#02030f' : '#1b2468', fillOpacity: satelite ? 0.3 : (oscuro ? 0.5 : 0.2) });
+    bordeLuz.setStyle({ color: oscuro ? '#8b96ff' : '#1423ff', opacity: oscuro ? 0.22 : 0.14 });
+    borde.setStyle({ color: oscuro ? '#c4caff' : '#1423ff', opacity: 0.9 });
+  }
+
+  // ---- sitios de interés ----
+  function dibujarSitios() {
+    var L = window.L;
+    var P = window.RutmovilNicaragua;
+
+    if (!P || !P.sitios) return;
+
+    capaSitios = L.layerGroup().addTo(map);
+    marcasSitios = P.sitios.map(function (t) {
+      var cat = P.categorias[t[3]] || ['📍', 12];
+      var html = '<div class="rm-site"><b>' + cat[0] + '</b><span>' + esc(t[0]) + '</span></div>';
+      var marca = L.marker([t[1], t[2]], {
+        icon: L.divIcon({ className: 'rm-site-wrap', html: html, iconSize: [0, 0] }),
+        keyboard: false, title: t[0], zIndexOffset: 200
+      });
+
+      marca.bindTooltip(t[0], { direction: 'top', offset: [0, -18], className: 'rm-tip' });
+
+      return { marca: marca, min: cat[1] };
+    });
+    visibilidadSitios();
+  }
+
+  function visibilidadSitios() {
+    if (!capaSitios) return;
+
+    var z = map.getZoom();
+
+    marcasSitios.forEach(function (m) {
+      var ver = verSitios && z >= m.min;
+
+      if (ver && !capaSitios.hasLayer(m.marca)) capaSitios.addLayer(m.marca);
+      if (!ver && capaSitios.hasLayer(m.marca)) capaSitios.removeLayer(m.marca);
+    });
+  }
+
+  // En la vista del país los recorridos de los expresos se ven junto a las ciudades.
+  function mostrarExpresosEnPais() {
+    if (!map || !capaLineasExp || modo !== 'rutas') return;
+
+    var ver = !sel && map.getZoom() <= 11;
+
+    [capaLineasExp, capaParadasExp].forEach(function (capa) {
+      if (ver && !map.hasLayer(capa)) map.addLayer(capa);
+      if (!ver && map.hasLayer(capa)) map.removeLayer(capa);
+    });
+  }
+
+  function abrirExp(id) {
+    if (modo !== 'expresos') cambiarModo('expresos');
+
+    elegirExp(id);
+  }
+
+  function pasaPor(exp) {
+    var P = window.RutmovilNicaragua;
+    var e = P && P.expresos && P.expresos[exp.id];
+    var inf = infoExp[exp.id];
+    var partes = [];
+
+    if (e && e.pasa.length) partes.push('Pasa por ' + e.pasa.map(function (n) { return esc(n[0]); }).join(' · '));
+    if (inf) partes.push('~' + Math.round(inf.total / 1000) + ' km por carretera');
+
+    return partes.length ? '<span class="rm-sub">' + partes.join(' · ') + '</span>' : '';
+  }
+
+  function htmlCiudades() {
+    var P = window.RutmovilNicaragua;
+
+    if (!P) return '';
+
+    return '<div class="rm-stops rm-cities" role="group" aria-label="Ir a una ciudad">' +
+      P.ciudades.map(function (c, i) {
+        return c[3] === 1 ? '<button type="button" class="rm-sp" data-ciudad="' + i + '">' + esc(c[0]) + '</button>' : '';
+      }).join('') + '</div>';
   }
 
   // ---- recorridos sobre las calles ----
@@ -395,19 +634,24 @@
 
     if (puntos.some(function (p) { return !p; })) return Promise.resolve(null);
 
+    return obtenerGeo(ruta.id, puntos, cache);
+  }
+
+  // Calcula (o recupera guardado) el recorrido por calles entre varios puntos.
+  function obtenerGeo(clave, puntos, cache, respaldo) {
     var firma = puntos.map(function (p) { return p[0] + ',' + p[1]; }).join(';');
 
-    if (cache[ruta.id] && cache[ruta.id].s === firma) {
-      return Promise.resolve({ g: cache[ruta.id].g, puntos: puntos, real: true });
+    if (cache[clave] && cache[clave].s === firma) {
+      return Promise.resolve({ g: cache[clave].g, puntos: puntos, real: true });
     }
 
     return pedirCalles(puntos).then(function (g) {
-      cache[ruta.id] = { s: firma, g: g };
+      cache[clave] = { s: firma, g: g };
       guardarCache(cache);
 
       return { g: g, puntos: puntos, real: true };
     }).catch(function () {
-      return { g: lineaRecta(puntos), puntos: puntos, real: false };
+      return { g: lineaRecta(respaldo || puntos), puntos: puntos, real: false };
     });
   }
 
@@ -434,7 +678,7 @@
 
       aviso(rectas ? 'Sin conexión al servicio de calles: se muestran líneas rectas entre paradas.' : '');
 
-      if (!sel) ajustarATodas();
+      if (modo === 'rutas' && !sel) ajustarATodas();
     });
   }
 
@@ -609,6 +853,320 @@
     });
   }
 
+// ---- expresos en el mapa ----
+  var minutosAhoraMapa = function () {
+    var f = new Date();
+
+    return f.getHours() * 60 + f.getMinutes() + f.getSeconds() / 60 + f.getMilliseconds() / 60000;
+  };
+
+  var horaTexto = function (minutos) {
+    var h = Math.floor(minutos / 60) % 24;
+
+    return (h % 12 === 0 ? 12 : h % 12) + ':' + dosDigitos(Math.floor(minutos % 60 + 1e-6)) + ' ' + (h >= 12 ? 'p. m.' : 'a. m.');
+  };
+
+  var horaCortaMapa = function (minutos) {
+    var h = Math.floor(minutos / 60) % 24;
+
+    return (h % 12 === 0 ? 12 : h % 12) + ':' + dosDigitos(Math.floor(minutos % 60 + 1e-6));
+  };
+
+  function expPorId(id) {
+    return datos().expresos.filter(function (e) { return e.id === id; })[0];
+  }
+
+  function colorExp(exp) {
+    var i = datos().expresos.indexOf(exp);
+
+    return COLORES[(i < 0 ? 0 : i) % COLORES.length];
+  }
+
+  function terminalCorta(exp) {
+    return exp.terminal.replace('Terminal ', '').replace('Mercado ', '');
+  }
+
+  function coordTerminal(exp) {
+    var clave = Object.keys(TERMINALES).filter(function (k) { return exp.terminal.indexOf(k) !== -1; })[0];
+
+    return clave ? TERMINALES[clave] : null;
+  }
+
+  function salidasExp(exp, minutosAhora) {
+    var D = datos();
+    var lista = [];
+
+    for (var hora = exp.first, n = 0; hora <= exp.last; hora += exp.every, n++) {
+      var retraso = D.calcularRetraso(exp, n);
+
+      lista.push({ numero: n, hora: hora, retraso: retraso, estimada: hora + retraso, falta: hora + retraso - minutosAhora });
+    }
+
+    return lista;
+  }
+
+  var enCaminoExp = function (s, exp, minutosAhora) {
+    return s.estimada <= minutosAhora && minutosAhora < s.estimada + exp.dur;
+  };
+
+  function estadoSalidaMapa(s) {
+    if (s.retraso > 0) return ['Retraso +' + s.retraso + ' min', 'warn'];
+    if (s.falta <= 1) return ['Saliendo', 'go'];
+    if (s.falta <= 10) return ['Abordando', 'go'];
+
+    return ['Puntual', 'ok'];
+  }
+
+  function cargarRecorridosExp() {
+    if (recorridosExpListos) return;
+
+    recorridosExpListos = true;
+    aviso('Calculando recorridos de los expresos…');
+
+    var cache = leerCache();
+
+    Promise.all(datos().expresos.map(function (exp) {
+      var origen = coordTerminal(exp);
+      var destino = DESTINOS[exp.id];
+
+      if (!origen || !destino) return Promise.resolve(null);
+
+      var extra = window.RutmovilNicaragua && window.RutmovilNicaragua.expresos && window.RutmovilNicaragua.expresos[exp.id];
+      var respaldo = [origen].concat(extra ? extra.via : [], [destino]);
+
+      return obtenerGeo('exp-' + exp.id, [origen, destino], cache, respaldo).then(function (resultado) {
+        dibujarExp(exp, resultado);
+
+        return resultado;
+      });
+    })).then(function (resultados) {
+      var rectas = resultados.filter(function (r) { return r && !r.real; }).length;
+
+      aviso(rectas ? 'Sin conexión al servicio de calles: se muestran líneas rectas entre ciudades.' : '');
+
+      if (modo === 'expresos' && !selExp) ajustarATodasExp();
+    });
+  }
+
+  function dibujarExp(exp, resultado) {
+    var L = window.L;
+
+    infoExp[exp.id] = armarRuta(resultado.g);
+    infoExp[exp.id].puntos = resultado.puntos;
+    infoExp[exp.id].color = colorExp(exp);
+
+    var casing = L.polyline(resultado.g.c, { weight: 9, lineCap: 'round', lineJoin: 'round', interactive: false });
+    var linea = L.polyline(resultado.g.c, { weight: 5, lineCap: 'round', lineJoin: 'round', bubblingMouseEvents: false });
+
+    var flujo = L.polyline(resultado.g.c, { color: '#ffffff', weight: 2, opacity: 0.85, dashArray: '1 14', lineCap: 'round', className: 'rm-flow', interactive: false });
+
+    linea.on('click', function () { abrirExp(exp.id); });
+    capaLineasExp.addLayer(casing);
+    capaLineasExp.addLayer(linea);
+    capaLineasExp.addLayer(flujo);
+    lineasExp[exp.id] = { casing: casing, linea: linea, flujo: flujo };
+
+    estilosExp();
+    moverBusesExp();
+    renderVivo(true);
+    mostrarExpresosEnPais();
+
+    if (selExp === exp.id) renderFijo();
+
+    if (modo === 'expresos' && selExp === exp.id) {
+      map.fitBounds(linea.getBounds(), { paddingTopLeft: [28, 96], paddingBottomRight: [28, 260], maxZoom: 13 });
+    }
+  }
+
+  function ajustarATodasExp() {
+    var grupo = Object.keys(lineasExp).map(function (id) { return lineasExp[id].linea.getBounds(); });
+
+    if (!grupo.length) return;
+
+    var limites = grupo[0];
+
+    grupo.forEach(function (b) { limites = limites.extend(b); });
+    map.fitBounds(limites, { paddingTopLeft: [24, 90], paddingBottomRight: [24, 230], maxZoom: 10 });
+  }
+
+  function estilosExp() {
+    var oscuro = esOscuro();
+
+    Object.keys(lineasExp).forEach(function (id) {
+      var par = lineasExp[id];
+      var activa = selExp === id;
+      var apagada = selExp && !activa;
+
+      par.casing.setStyle({ color: oscuro ? '#0a0f33' : '#ffffff', weight: activa ? 11 : 9, opacity: apagada ? 0.35 : 0.95 });
+      par.linea.setStyle({ color: apagada ? '#8a93b8' : infoExp[id].color, weight: activa ? 7 : 5, opacity: apagada ? 0.55 : 1 });
+
+      if (activa) {
+        par.casing.bringToFront();
+        par.linea.bringToFront();
+      }
+    });
+
+    Object.keys(lineasExp).forEach(function (id) {
+      lineasExp[id].flujo.setStyle({ opacity: selExp && selExp !== id ? 0 : 0.85 });
+      lineasExp[id].flujo.bringToFront();
+    });
+
+    dibujarExtremosExp();
+  }
+
+  function dibujarExtremosExp() {
+    var L = window.L;
+
+    capaParadasExp.clearLayers();
+
+    datos().expresos.forEach(function (exp) {
+      var inf = infoExp[exp.id];
+
+      if (!inf || (selExp && selExp !== exp.id)) return;
+
+      var extra = window.RutmovilNicaragua && window.RutmovilNicaragua.expresos && window.RutmovilNicaragua.expresos[exp.id];
+
+      if (extra && selExp === exp.id) {
+        extra.pasa.forEach(function (n) {
+          var punto = L.circleMarker([n[1], n[2]], { radius: 5, color: inf.color, weight: 3, fillColor: '#ffffff', fillOpacity: 1, bubblingMouseEvents: false });
+
+          punto.bindTooltip(n[0], { direction: 'top', offset: [0, -7], className: 'rm-tip', permanent: true });
+          capaParadasExp.addLayer(punto);
+        });
+      }
+
+      [0, 1].forEach(function (i) {
+        var esDestino = i === 1;
+        var marca = L.circleMarker(inf.puntos[i], {
+          radius: esDestino ? 8 : 6, color: inf.color, weight: 3,
+          fillColor: esDestino ? inf.color : (esOscuro() ? '#10153a' : '#ffffff'), fillOpacity: 1, bubblingMouseEvents: false
+        });
+
+        marca.bindTooltip(esDestino ? exp.dest : terminalCorta(exp), {
+          direction: 'top', offset: [0, -8], className: 'rm-tip', permanent: esDestino || selExp === exp.id
+        });
+        marca.on('click', function () { abrirExp(exp.id); });
+        capaParadasExp.addLayer(marca);
+      });
+    });
+  }
+
+  function crearMarcadorExp(exp, salida, tono) {
+    var L = window.L;
+    var html = '<div class="rm-bus" style="--c:' + tono + '"><span class="rm-arrow"></span><span class="rm-badge">' +
+      esc(exp.dest.slice(0, 3).toUpperCase()) + '</span></div>';
+    var marca = L.marker([0, 0], {
+      icon: L.divIcon({ className: 'rm-bus-wrap', html: html, iconSize: [46, 46], iconAnchor: [23, 23] }),
+      keyboard: true,
+      title: 'Expreso a ' + exp.dest + ', salió a las ' + horaTexto(salida.estimada),
+      zIndexOffset: 500
+    });
+
+    marca.on('click', function () { abrirExp(exp.id); });
+
+    return marca;
+  }
+
+  // Los buses en camino se calculan con la hora de salida y el tiempo de viaje.
+  function moverBusesExp() {
+    var D = datos();
+    var minutos = minutosAhoraMapa();
+    var vivos = {};
+
+    D.expresos.forEach(function (exp) {
+      var inf = infoExp[exp.id];
+
+      if (!inf) return;
+
+      salidasExp(exp, minutos).forEach(function (salida) {
+        if (!enCaminoExp(salida, exp, minutos)) return;
+
+        var clave = exp.id + '|' + salida.numero;
+        var marca = marcadoresExp[clave];
+
+        vivos[clave] = true;
+
+        if (!marca) {
+          marca = marcadoresExp[clave] = crearMarcadorExp(exp, salida, inf.color);
+          capaBusesExp.addLayer(marca);
+        }
+
+        var punto = puntoEn(inf, (minutos - salida.estimada) / exp.dur * inf.total);
+
+        marca.setLatLng([punto.lat, punto.lng]);
+
+        var elemento = marca.getElement();
+        var contenedor = elemento && elemento.firstChild;
+
+        if (!contenedor) return;
+
+        contenedor.classList.toggle('dim', !!selExp && selExp !== exp.id);
+        contenedor.firstChild.style.transform = 'rotate(' + punto.rumbo.toFixed(0) + 'deg)';
+      });
+    });
+
+    Object.keys(marcadoresExp).forEach(function (clave) {
+      if (!vivos[clave]) {
+        capaBusesExp.removeLayer(marcadoresExp[clave]);
+        delete marcadoresExp[clave];
+      }
+    });
+  }
+
+  function elegirExp(id) {
+    selExp = id;
+
+    estilosExp();
+    renderFijo();
+    renderVivo(true);
+    moverBusesExp();
+
+    if (id && lineasExp[id]) {
+      map.fitBounds(lineasExp[id].linea.getBounds(), { paddingTopLeft: [28, 96], paddingBottomRight: [28, 260], maxZoom: 13 });
+    } else if (!id) {
+      ajustarATodasExp();
+    }
+  }
+
+  function cargarSegunModo() {
+    cargarRecorridos();
+    cargarRecorridosExp();
+  }
+
+  function cambiarModo(nuevo) {
+    if (nuevo === modo || !map) return;
+
+    modo = nuevo;
+
+    var enRutas = modo === 'rutas';
+
+    [[capaLineas, capaParadas, capaBuses], [capaLineasExp, capaParadasExp, capaBusesExp]].forEach(function (grupo, i) {
+      var visible = (i === 0) === enRutas;
+
+      grupo.forEach(function (capa) {
+        if (visible && !map.hasLayer(capa)) map.addLayer(capa);
+        if (!visible && map.hasLayer(capa)) map.removeLayer(capa);
+      });
+    });
+
+    $('rm-rutas').setAttribute('aria-label', enRutas ? 'Ver todas las rutas' : 'Ver todos los expresos');
+    cargarSegunModo();
+
+    if (enRutas) estilos(); else estilosExp();
+
+    renderFijo();
+    renderVivo(true);
+    mostrarExpresosEnPais();
+
+    if (enRutas) {
+      if (sel && lineas[sel]) elegirRuta(sel); else ajustarATodas();
+    } else if (selExp && lineasExp[selExp]) {
+      elegirExp(selExp);
+    } else {
+      ajustarATodasExp();
+    }
+  }
+
   // ---- selección de ruta ----
   function paradaCercana(ruta) {
     if (!usuario || !info[ruta.id]) return null;
@@ -644,6 +1202,7 @@
     }
 
     estilos();
+    mostrarExpresosEnPais();
     renderFijo();
     renderVivo(true);
     moverBuses();
@@ -658,12 +1217,22 @@
   // ---- tarjeta inferior ----
   function renderChips() {
     var D = datos();
-    var html = '<button type="button" class="rm-rchip rm-todas" data-id="" aria-pressed="' + (!sel) + '">Todas</button>';
+    var html = '<button type="button" class="rm-rchip rm-modo" data-modo="rutas" aria-pressed="' + (modo === 'rutas') + '">Rutas</button>' +
+      '<button type="button" class="rm-rchip rm-modo" data-modo="expresos" aria-pressed="' + (modo === 'expresos') + '">Expresos</button>';
 
-    html += D.rutas.map(function (ruta) {
-      return '<button type="button" class="rm-rchip" data-id="' + esc(ruta.id) + '" style="--c:' + color(ruta) +
-        '" aria-pressed="' + (sel === ruta.id) + '" aria-label="Ruta ' + esc(ruta.id) + '"><i></i>' + esc(ruta.id) + '</button>';
-    }).join('');
+    if (modo === 'rutas') {
+      html += '<button type="button" class="rm-rchip rm-todas" data-id="" aria-pressed="' + (!sel) + '">Todas</button>';
+      html += D.rutas.map(function (ruta) {
+        return '<button type="button" class="rm-rchip" data-id="' + esc(ruta.id) + '" style="--c:' + color(ruta) +
+          '" aria-pressed="' + (sel === ruta.id) + '" aria-label="Ruta ' + esc(ruta.id) + '"><i></i>' + esc(ruta.id) + '</button>';
+      }).join('');
+    } else {
+      html += '<button type="button" class="rm-rchip rm-todas" data-id="" aria-pressed="' + (!selExp) + '">Todos</button>';
+      html += D.expresos.map(function (exp) {
+        return '<button type="button" class="rm-rchip rm-dest" data-id="' + esc(exp.id) + '" style="--c:' + colorExp(exp) +
+          '" aria-pressed="' + (selExp === exp.id) + '" aria-label="Expreso a ' + esc(exp.dest) + '"><i></i>' + esc(exp.dest) + '</button>';
+      }).join('');
+    }
 
     $('rm-chips').innerHTML = html;
   }
@@ -673,8 +1242,24 @@
 
     var zona = $('rm-fijo');
 
+    if (modo === 'expresos') {
+      if (!selExp) {
+        zona.innerHTML = '<div class="rm-sh-h"><div><b>Expresos en vivo</b><span class="rm-sub" id="rm-resumen"></span></div></div>' + htmlCiudades();
+        return;
+      }
+
+      var exp = expPorId(selExp);
+
+      zona.innerHTML =
+        '<div class="rm-sh-h" style="--c:' + colorExp(exp) + '"><span class="rm-num">' + esc(exp.dest.slice(0, 3).toUpperCase()) + '</span>' +
+        '<div><b>' + esc(terminalCorta(exp)) + ' → ' + esc(exp.dest) + '</b>' +
+        '<span class="rm-sub">Andén ' + exp.gate + ' · cada ' + exp.every + ' min · viaje de ~' + exp.dur + ' min</span>' + pasaPor(exp) + '</div>' +
+        '<button type="button" class="rm-btn" id="rm-todas" aria-label="Ver todos los expresos">' + iconos.cerrar + '</button></div>';
+      return;
+    }
+
     if (!sel) {
-      zona.innerHTML = '<div class="rm-sh-h"><div><b>Rutas en vivo</b><span class="rm-sub" id="rm-resumen"></span></div></div>';
+      zona.innerHTML = '<div class="rm-sh-h"><div><b>Rutas en vivo</b><span class="rm-sub" id="rm-resumen"></span></div></div>' + htmlCiudades();
       return;
     }
 
@@ -694,8 +1279,49 @@
 
   var ultimoHtmlVivo = '';
 
+  function htmlVivoExp() {
+    var D = datos();
+    var minutos = minutosAhoraMapa();
+
+    if (!selExp) {
+      var enCamino = 0;
+
+      D.expresos.forEach(function (exp) {
+        salidasExp(exp, minutos).forEach(function (s) { if (enCaminoExp(s, exp, minutos)) enCamino++; });
+      });
+
+      var resumen = $('rm-resumen');
+
+      if (resumen) resumen.textContent = D.expresos.length + ' expresos · ' + enCamino + ' en camino ahora';
+
+      return '<p class="rm-hint">Toca un destino, un bus o una línea para ver las salidas de ese expreso.</p>';
+    }
+
+    var exp = expPorId(selExp);
+    var todas = salidasExp(exp, minutos);
+    var proximas = todas.filter(function (s) { return s.falta > -1; });
+    var camino = todas.filter(function (s) { return enCaminoExp(s, exp, minutos); });
+    var p = proximas[0];
+    var estado = p ? estadoSalidaMapa(p) : ['Sin más salidas hoy', ''];
+    var filas = camino.slice(0, 2).map(function (s) {
+      return '<li><span class="rm-bid">' + horaCortaMapa(s.estimada) + '</span><span class="rm-st">En camino</span><span class="rm-cd">llega en ' +
+        Math.ceil(s.estimada + exp.dur - minutos) + ' min</span></li>';
+    }).join('') + proximas.slice(0, 3).map(function (s) {
+      return '<li><span class="rm-bid">' + horaCortaMapa(s.estimada) + '</span><span class="rm-st">' + esc(estadoSalidaMapa(s)[0]) +
+        '</span><span class="rm-cd">' + (s.falta < 1 ? 'Ahora' : Math.ceil(s.falta) + ' min') + '</span></li>';
+    }).join('');
+
+    return '<div style="--c:' + colorExp(exp) + '"><div class="rm-eta"><span class="rm-big">' +
+      (p ? (p.falta < 1 ? 'Ahora' : Math.ceil(p.falta) + ' min') : '–') + '</span><span class="rm-lbl">' +
+      (p ? 'Próxima salida · <b>' + esc(horaTexto(p.estimada)) + '</b>' : 'No hay más salidas hoy') + '</span>' +
+      '<span class="rm-chip ' + estado[1] + '">' + esc(estado[0]) + '</span></div>' +
+      '<ol class="rm-next">' + (filas || '<li><span class="rm-st">Los expresos salen desde las 5:00 a. m.</span></li>') + '</ol></div>';
+  }
+
   function htmlVivo() {
     var D = datos();
+
+    if (modo === 'expresos') return htmlVivoExp();
 
     if (!sel) {
       var circulando = 0;
@@ -874,7 +1500,7 @@
     if (panel.hidden) return;
 
     if (map && capaBuses) {
-      moverBuses();
+      if (modo === 'rutas') moverBuses(); else moverBusesExp();
 
       var ahora = Date.now();
 
@@ -906,7 +1532,16 @@
     asegurarMapa().then(function () {
       map.invalidateSize();
       ponerMosaicos();
-      cargarRecorridos();
+
+      if (pendiente) {
+        var deseado = pendiente;
+
+        pendiente = null;
+        cambiarModo(deseado.modo);
+        if (deseado.id) elegirExp(deseado.id);
+      }
+
+      cargarSegunModo();
       if (quiereUbicacion) iniciarUbicacion(false);
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(cuadro);
@@ -932,7 +1567,7 @@
     $('rm-err').hidden = true;
     asegurarMapa().then(function () {
       map.invalidateSize();
-      cargarRecorridos();
+      cargarSegunModo();
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(cuadro);
     }).catch(function () {});
@@ -955,10 +1590,12 @@
   });
 
   $('rm-nic').addEventListener('click', function () {
-    if (map) map.fitBounds(NICARAGUA, { paddingTopLeft: [10, 90], paddingBottomRight: [10, 260] });
+    if (map) map.fitBounds(borde ? borde.getBounds() : NICARAGUA, { paddingTopLeft: [14, 90], paddingBottomRight: [14, 250], animate: true, duration: 0.9 });
   });
   $('rm-rutas').addEventListener('click', function () {
-    if (map) elegirRuta(null);
+    if (!map) return;
+
+    if (modo === 'expresos') elegirExp(null); else elegirRuta(null);
   });
   $('rm-ubic').addEventListener('click', function (evento) {
     var accion = evento.target.closest('[data-u]');
@@ -973,6 +1610,23 @@
       renderUbic();
     }
   });
+  $('rm-grab').addEventListener('click', function () {
+    var plegada = $('rm-sheet').classList.toggle('rm-plegada');
+
+    this.setAttribute('aria-expanded', String(!plegada));
+    this.setAttribute('aria-label', plegada ? 'Desplegar panel' : 'Plegar panel');
+  });
+  $('rm-sitios').addEventListener('click', function () {
+    verSitios = !verSitios;
+    this.setAttribute('aria-pressed', String(verSitios));
+    visibilidadSitios();
+  });
+  $('rm-capas').addEventListener('click', function () {
+    satelite = !satelite;
+    this.setAttribute('aria-pressed', String(satelite));
+    this.setAttribute('aria-label', satelite ? 'Cambiar a vista de calles' : 'Cambiar a vista satélite');
+    ponerMosaicos();
+  });
   $('rm-zin').addEventListener('click', function () { if (map) map.zoomIn(); });
   $('rm-zout').addEventListener('click', function () { if (map) map.zoomOut(); });
   $('rm-loc').addEventListener('click', function () {
@@ -984,18 +1638,33 @@
 
     if (!chip || !map) return;
 
-    elegirRuta(chip.getAttribute('data-id') || null);
+    if (chip.getAttribute('data-modo')) {
+      cambiarModo(chip.getAttribute('data-modo'));
+      return;
+    }
+
+    if (modo === 'expresos') elegirExp(chip.getAttribute('data-id') || null);
+    else elegirRuta(chip.getAttribute('data-id') || null);
   });
 
   $('rm-fijo').addEventListener('click', function (evento) {
     if (evento.target.closest('#rm-todas')) {
-      elegirRuta(null);
+      if (modo === 'expresos') elegirExp(null); else elegirRuta(null);
+      return;
+    }
+
+    var ciudad = evento.target.closest('[data-ciudad]');
+
+    if (ciudad && map) {
+      var c = window.RutmovilNicaragua.ciudades[Number(ciudad.getAttribute('data-ciudad'))];
+
+      map.flyTo([c[1], c[2]], c[4] ? 12 : 11, { duration: 0.9 });
       return;
     }
 
     var parada = evento.target.closest('.rm-sp');
 
-    if (!parada || !sel) return;
+    if (!parada || !sel || modo !== 'rutas') return;
 
     selParada[sel] = Number(parada.getAttribute('data-i'));
     selBus = null;
@@ -1015,6 +1684,24 @@
 
     elegirRuta(enlace.getAttribute('data-ruta'), { parada: Number(enlace.getAttribute('data-parada')) });
   });
+
+  // Permite que las tarjetas de Expresos abran el mapa en ese expreso.
+  window.RutmovilMapa = {
+    abrir: abrir,
+    verExpreso: function (id) {
+      pendiente = { modo: 'expresos', id: id };
+
+      if (panel.hidden) {
+        abrir();
+      } else if (map) {
+        var deseado = pendiente;
+
+        pendiente = null;
+        cambiarModo(deseado.modo);
+        elegirExp(deseado.id);
+      }
+    }
+  };
 
   // El mapa sigue el tema claro/oscuro de Rutmovil.
   new MutationObserver(ponerMosaicos).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
