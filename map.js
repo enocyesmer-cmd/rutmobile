@@ -9,6 +9,9 @@
   // Por defecto el mapa usa OpenStreetMap, que NO pide clave.
   // CARTO ahora exige una clave gratuita (carto.com/basemaps/apikey). Si quieres su diseño, pega tu clave aquí:
   var CLAVE_CARTO = '';
+  // Fotos de las paradas con Google Maps (Places y Street View). Necesita una clave de Google Cloud
+  // (ver instrucciones en LEEME-FOTOS.txt). Si lo dejas vacío, las paradas se ven con tarjetas de color e icono.
+  var CLAVE_GOOGLE = '';
   var MOSAICO_OSM = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   var MOSAICO_CLARO = 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=' + CLAVE_CARTO;
   var MOSAICO_OSCURO = 'https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=' + CLAVE_CARTO;
@@ -251,6 +254,7 @@
   var claveMosaico = null;
   var capaEtiquetas = null;
   var capaCalles = null;
+  var fotos = {};
   var satelite = false;
   var capaSitios = null;
   var marcasSitios = [];
@@ -562,6 +566,116 @@
     if (inf) partes.push('~' + Math.round(inf.total / 1000) + ' km por carretera');
 
     return partes.length ? '<span class="rm-sub">' + partes.join(' · ') + '</span>' : '';
+  }
+
+  // ---- fotos de las paradas (se guardan solo en memoria: Google no permite guardarlas) ----
+  function iconoParada(nombre) {
+    var n = nombre.toLowerCase();
+
+    if (/terminal/.test(n)) return '🚌';
+    if (/mercado/.test(n)) return '🛒';
+    if (/hospital/.test(n)) return '🏥';
+    if (/uni\b|universit/.test(n)) return '🎓';
+    if (/rotonda/.test(n)) return '🔄';
+    if (/parque|malec/.test(n)) return '🌳';
+    if (/plaza|metrocentro|zona franca/.test(n)) return '🏬';
+    if (/carretera|camino/.test(n)) return '🛣️';
+
+    return '📍';
+  }
+
+  function streetView(punto) {
+    var lugar = punto[0] + ',' + punto[1];
+    var clave = encodeURIComponent(CLAVE_GOOGLE);
+
+    return fetch('https://maps.googleapis.com/maps/api/streetview/metadata?location=' + lugar + '&radius=100&key=' + clave)
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j.status !== 'OK') throw new Error('sin street view');
+
+        return {
+          url: 'https://maps.googleapis.com/maps/api/streetview?size=480x360&location=' + lugar + '&radius=100&fov=90&key=' + clave,
+          autor: '', calle: true
+        };
+      });
+  }
+
+  function pedirFotoGoogle(nombre, punto) {
+    return fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': CLAVE_GOOGLE, 'X-Goog-FieldMask': 'places.displayName,places.photos' },
+      body: JSON.stringify({
+        textQuery: nombre + ', Nicaragua', languageCode: 'es', maxResultCount: 1,
+        locationBias: { circle: { center: { latitude: punto[0], longitude: punto[1] }, radius: 1500 } }
+      })
+    }).then(function (r) {
+      if (!r.ok) throw new Error('places');
+
+      return r.json();
+    }).then(function (j) {
+      var foto = j.places && j.places[0] && j.places[0].photos && j.places[0].photos[0];
+
+      if (!foto) throw new Error('sin foto');
+
+      return {
+        url: 'https://places.googleapis.com/v1/' + foto.name + '/media?maxWidthPx=480&maxHeightPx=360&key=' + encodeURIComponent(CLAVE_GOOGLE),
+        autor: (foto.authorAttributions || []).map(function (a) { return a.displayName; }).join(', '), calle: false
+      };
+    }).catch(function () { return streetView(punto); });
+  }
+
+  function cargarFotos(ruta) {
+    if (!CLAVE_GOOGLE) return;
+
+    ruta.stops.forEach(function (nombre) {
+      var punto = PARADAS[nombre];
+
+      if (!punto || fotos[nombre]) return;
+
+      fotos[nombre] = { estado: 'cargando' };
+      pedirFotoGoogle(nombre, punto).then(function (r) {
+        fotos[nombre] = { estado: 'ok', url: r.url, autor: r.autor, calle: r.calle };
+      }).catch(function () {
+        fotos[nombre] = { estado: 'sin' };
+      }).then(function () { pintarFoto(nombre); });
+    });
+  }
+
+  function htmlFotoInterior(nombre) {
+    var f = fotos[nombre];
+    var base = '<span class="rm-foto-ico" aria-hidden="true">' + iconoParada(nombre) + '</span>';
+
+    if (f && f.estado === 'ok') {
+      return base + '<img src="' + esc(f.url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' +
+        '<i class="rm-foto-g" title="' + esc(f.autor ? 'Foto: ' + f.autor : 'Google Maps') + '">' + (f.calle ? 'Street View' : 'Google Maps') + '</i>';
+    }
+
+    return base;
+  }
+
+  function htmlFotos(ruta, tono) {
+    return '<div class="rm-fotos" style="--c:' + tono + '" role="group" aria-label="Paradas de la ruta">' +
+      ruta.stops.map(function (nombre, i) {
+        return '<button type="button" class="rm-foto" data-i="' + i + '" data-fp="' + esc(nombre) + '" aria-pressed="' + (selParada[sel] === i) + '" aria-label="Parada ' + (i + 1) + ': ' + esc(nombre) + '">' +
+          '<span class="rm-foto-img">' + htmlFotoInterior(nombre) + '</span>' +
+          '<span class="rm-foto-n">' + (i + 1) + '</span><b>' + esc(nombre) + '</b></button>';
+      }).join('') + '</div>';
+  }
+
+  function pintarFoto(nombre) {
+    var zona = $('rm-fijo');
+
+    Array.prototype.forEach.call(zona.querySelectorAll('.rm-foto'), function (tarjeta) {
+      if (tarjeta.getAttribute('data-fp') === nombre) tarjeta.querySelector('.rm-foto-img').innerHTML = htmlFotoInterior(nombre);
+    });
+  }
+
+  function centrarFoto() {
+    var tarjeta = $('rm-fijo').querySelector('.rm-foto[aria-pressed="true"]');
+
+    if (tarjeta && tarjeta.parentNode) {
+      tarjeta.parentNode.scrollLeft = tarjeta.offsetLeft - (tarjeta.parentNode.clientWidth - tarjeta.offsetWidth) / 2;
+    }
   }
 
   function htmlCiudades() {
@@ -1274,7 +1388,11 @@
       '<div><b>' + esc(ruta.stops[0]) + ' → ' + esc(ruta.stops[ruta.stops.length - 1]) + '</b>' +
       '<span class="rm-sub">' + ruta.stops.length + ' paradas · un bus cada ~' + frecuencia(ruta) + ' min</span></div>' +
       '<button type="button" class="rm-btn" id="rm-todas" aria-label="Ver todas las rutas">' + iconos.cerrar + '</button></div>' +
+      htmlFotos(ruta, tono) +
       '<div class="rm-stops" style="--c:' + tono + '" role="group" aria-label="Elegir parada">' + paradas + '</div>';
+
+    centrarFoto();
+    cargarFotos(ruta);
   }
 
   var ultimoHtmlVivo = '';
@@ -1662,7 +1780,7 @@
       return;
     }
 
-    var parada = evento.target.closest('.rm-sp');
+    var parada = evento.target.closest('.rm-sp, .rm-foto');
 
     if (!parada || !sel || modo !== 'rutas') return;
 

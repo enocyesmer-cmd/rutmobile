@@ -1,6 +1,6 @@
 /* Service worker de Rutmovil: deja la app funcionando sin internet.
    Si cambias archivos de la página, sube el número de VERSION para que se actualice. */
-var VERSION = 'rutmovil-v7';
+var VERSION = 'rutmovil-v8';
 
 var ARCHIVOS = [
   './',

@@ -1,0 +1,18 @@
+FOTOS DE LAS PARADAS CON GOOGLE MAPS
+====================================
+Rutmovil muestra una tarjeta por cada parada de la ruta elegida. Sin clave, la tarjeta es de color con un icono.
+Con clave de Google, se carga la foto del lugar (Places) o, si no hay, la vista de la calle (Street View).
+
+1) Entra a https://console.cloud.google.com y crea un proyecto (Google pide activar facturación; tiene un uso gratis mensual).
+2) En "APIs y servicios > Biblioteca" activa:  Places API (New)  y  Street View Static API.
+3) En "Credenciales" crea una clave de API y RESTRÍNGELA:
+   - Restricción de aplicación: sitios web (HTTP referrers) -> pon el dominio donde publicas Rutmovil.
+   - Restricción de API: solo Places API (New) y Street View Static API.
+   (La clave queda visible en el navegador, por eso la restricción es obligatoria. Pon también un presupuesto con alerta.)
+4) Abre map.js y pega la clave en:   var CLAVE_GOOGLE = 'TU_CLAVE';
+5) Sube los archivos y recarga la app (la versión del service worker ya cambió).
+
+Notas:
+- Las fotos se piden cuando eliges una ruta y solo se guardan en memoria (los términos de Google no permiten guardarlas).
+- Cada tarjeta con foto muestra "Google Maps" o "Street View" como crédito; al mantener presionado se ve el autor de la foto.
+- Las coordenadas de las paradas son aproximadas; si una foto sale de otro sitio, corrige el número en PARADAS de map.js.
