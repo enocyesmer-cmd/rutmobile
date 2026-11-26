@@ -1,0 +1,178 @@
+/* Mapa de Rutmovil (estilo Waze). Archivo nuevo: no cambia el diseño existente.
+   Todas las clases empiezan con "rm-" para no chocar con style.css. */
+
+html.rm-abierto { overflow: hidden; }
+
+/* Botón flotante que abre el mapa */
+.rm-open {
+  position: fixed; right: 16px; z-index: 40;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 52px; padding: 0 20px 0 16px; border: 0; border-radius: 999px;
+  background: var(--accent); color: var(--accent-ink);
+  font: 600 1rem var(--font-body); cursor: pointer;
+  box-shadow: 0 6px 20px rgba(20, 35, 255, .35), 0 2px 6px rgba(0, 0, 0, .2);
+  transition: transform .15s;
+}
+.rm-open:hover { transform: translateY(-2px); }
+.rm-open:active { transform: scale(.96); }
+.rm-open svg, .rm-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.rm-open:focus-visible, .rm-btn:focus-visible, .rm-rchip:focus-visible, .rm-sp:focus-visible, .rm-link:focus-visible {
+  outline: 3px solid var(--sky); outline-offset: 2px;
+}
+
+/* Pantalla completa del mapa */
+.rm { position: fixed; inset: 0; z-index: 60; background: var(--bg); color: var(--ink); font-family: var(--font-body); }
+.rm[hidden] { display: none; }
+.rm-map { position: absolute; inset: 0; isolation: isolate; background: var(--surface-2); }
+.rm-map .leaflet-container { width: 100%; height: 100%; background: var(--surface-2); font-family: var(--font-body); }
+
+.rm-err {
+  position: absolute; inset: 0; z-index: 3; display: grid; place-content: center; justify-items: center;
+  gap: 14px; padding: 24px; text-align: center; background: var(--bg);
+}
+.rm-err[hidden] { display: none; }
+.rm-err p { max-width: 32ch; color: var(--muted); }
+
+/* Barra superior: cerrar + rutas */
+.rm-top {
+  position: absolute; left: 0; right: 0; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 8px; pointer-events: none;
+}
+.rm-top > * { pointer-events: auto; }
+.rm-btn {
+  flex: none; width: 48px; height: 48px; display: grid; place-items: center; border: 0; border-radius: 50%;
+  background: var(--surface); color: var(--ink); cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .25);
+}
+.rm-btn:active { transform: scale(.94); }
+.rm-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.rm-chips {
+  display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 8px; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.rm-chips::-webkit-scrollbar { display: none; }
+.rm-rchip {
+  flex: none; display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 16px;
+  border: 0; border-radius: 999px; background: var(--surface); color: var(--ink);
+  font: 700 .95rem var(--font-mono); cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, .25);
+}
+.rm-rchip i { width: 10px; height: 10px; border-radius: 50%; background: var(--c, var(--accent)); }
+.rm-rchip[aria-pressed="true"] { background: var(--c, var(--accent)); color: #fff; }
+.rm-rchip[aria-pressed="true"] i { background: #fff; }
+.rm-rchip.rm-todas { font-family: var(--font-body); font-weight: 600; }
+
+/* Parte baja: botones y tarjeta de información */
+.rm-dock {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; pointer-events: none;
+  padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0px));
+}
+.rm-fabs { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; margin: 0 auto 12px; max-width: 560px; }
+.rm-fabs .rm-btn { pointer-events: auto; }
+.rm-sheet {
+  pointer-events: auto; max-width: 560px; margin: 0 auto; padding: 16px 16px 10px;
+  background: var(--surface); border-radius: 22px; box-shadow: 0 -2px 24px rgba(0, 0, 0, .3);
+}
+.rm-sh-h { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+.rm-sh-h > div { flex: 1; min-width: 0; }
+.rm-sh-h b { display: block; font: 800 1.05rem var(--font-display); line-height: 1.2; }
+.rm-sh-h span.rm-sub, .rm-sub { display: block; color: var(--muted); font-size: .85rem; margin-top: 2px; }
+.rm-num {
+  flex: none; min-width: 54px; padding: 8px 10px; border-radius: 14px; text-align: center;
+  font: 700 1.1rem var(--font-mono); color: #fff; background: var(--c, var(--accent));
+}
+.rm-sh-h .rm-btn { width: 40px; height: 40px; box-shadow: none; background: var(--surface-2); }
+
+.rm-eta { display: flex; align-items: center; gap: 12px; margin: 12px 0 4px; flex-wrap: wrap; }
+.rm-big { font: 800 2rem var(--font-display); line-height: 1; letter-spacing: -.02em; }
+.rm-eta .rm-lbl { flex: 1; min-width: 140px; color: var(--muted); font-size: .9rem; }
+.rm-eta .rm-lbl b { color: var(--ink); }
+.rm-chip { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: .78rem; font-weight: 600; background: var(--surface-2); color: var(--muted); }
+.rm-chip.ok { background: var(--ok-bg); color: var(--ok); }
+.rm-chip.go { background: var(--accent); color: var(--accent-ink); }
+.rm-chip.warn { background: var(--warn-bg); color: var(--warn); }
+
+.rm-next { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.rm-next li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: var(--surface-2); font-size: .9rem; }
+.rm-next li.rm-me { outline: 2px solid var(--c, var(--accent)); }
+.rm-bid { flex: none; min-width: 34px; padding: 2px 8px; border-radius: 8px; text-align: center; background: var(--c, var(--accent)); color: #fff; font: 700 .8rem var(--font-mono); }
+.rm-next .rm-st { flex: 1; color: var(--muted); }
+.rm-cd { font: 700 .95rem var(--font-mono); }
+
+.rm-stops { display: flex; gap: 8px; overflow-x: auto; margin: 10px -4px 0; padding: 4px; scrollbar-width: none; }
+.rm-stops::-webkit-scrollbar { display: none; }
+.rm-sp {
+  flex: none; min-height: 40px; padding: 0 14px; border: 2px solid var(--line); border-radius: 999px;
+  background: transparent; color: var(--ink); font: 500 .85rem var(--font-body); cursor: pointer; white-space: nowrap;
+}
+.rm-sp[aria-pressed="true"] { border-color: var(--c, var(--accent)); background: var(--c, var(--accent)); color: #fff; font-weight: 600; }
+
+.rm-hint { margin: 10px 0 0; color: var(--muted); font-size: .88rem; }
+.rm-near { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-size: .9rem; }
+.rm-near b { font-weight: 700; }
+.rm-link { margin-top: 8px; min-height: 40px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font: 600 .88rem var(--font-body); cursor: pointer; }
+.rm-estado { min-height: 1.1em; margin: 6px 0 0; color: var(--warn); font-size: .82rem; }
+.rm-credit { margin: 4px 0 0; color: var(--muted); font-size: .68rem; text-align: right; opacity: .8; }
+.rm-credit a { color: inherit; }
+
+/* Panel "Tu ubicación" */
+.rm-ubic { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; padding: 10px 12px; border-radius: 14px; background: var(--accent-bg); }
+.rm-ubic > div { flex: 1; min-width: 160px; }
+.rm-ubic b { font: 800 .95rem var(--font-display); }
+.rm-ubic .rm-link { margin-top: 0; min-height: 36px; }
+.rm-link[aria-pressed="true"] { background: var(--ok); color: #fff; }
+
+/* Buses en el mapa (estilo flecha de Waze) */
+.rm-bus-wrap { background: none; border: 0; }
+.rm-bus { position: relative; width: 46px; height: 46px; transition: opacity .2s; }
+.rm-arrow { position: absolute; inset: 0; }
+.rm-arrow::before {
+  content: ""; position: absolute; left: 50%; top: -2px; margin-left: -8px;
+  border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 12px solid var(--c);
+}
+.rm-badge {
+  position: absolute; left: 6px; top: 6px; width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--c); color: #fff; border: 3px solid #fff;
+  font: 700 11px var(--font-mono); box-shadow: 0 2px 8px rgba(0, 0, 0, .4); transition: transform .15s;
+}
+.rm-bus.late .rm-badge { background: #e8590c; }
+.rm-bus.late .rm-arrow::before { border-bottom-color: #e8590c; }
+.rm-bus.late .rm-badge::after {
+  content: "!"; position: absolute; right: -9px; top: -9px; width: 17px; height: 17px; border-radius: 50%;
+  display: grid; place-items: center; background: #fff; color: #c92a2a; font: 800 11px var(--font-body);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+}
+.rm-bus.dim { opacity: .4; }
+.rm-bus.sel .rm-badge { transform: scale(1.18); }
+
+/* Tu ubicación (punto azul con pulso, como en Waze) */
+.rm-me-wrap { background: none; border: 0; }
+.rm-me { position: relative; width: 40px; height: 40px; }
+.rm-me::before {
+  content: ""; position: absolute; inset: 6px; border-radius: 50%; background: rgba(20, 110, 255, .3);
+  animation: rmPulse 2s ease-out infinite;
+}
+.rm-me i { position: absolute; left: 12px; top: 12px; width: 16px; height: 16px; border-radius: 50%; background: #1a73ff; border: 3px solid #fff; box-shadow: 0 1px 6px rgba(0, 0, 0, .5); }
+.rm-me-arrow { position: absolute; inset: 0; display: none; }
+.rm-me-arrow::before {
+  content: ""; position: absolute; left: 50%; top: 0; margin-left: -6px;
+  border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid #1a73ff;
+}
+.rm-me.rumbo .rm-me-arrow { display: block; }
+@keyframes rmPulse { from { transform: scale(.5); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+
+/* Nombres de paradas */
+.leaflet-tooltip.rm-tip {
+  background: var(--surface); color: var(--ink); border: 0; border-radius: 8px; padding: 4px 8px;
+  font: 600 12px var(--font-body); box-shadow: 0 2px 8px rgba(0, 0, 0, .3);
+}
+.leaflet-tooltip.rm-tip::before { display: none; }
+
+@media (min-width: 720px) {
+  .rm-top { padding-left: 20px; padding-right: 20px; }
+  .rm-dock { padding-left: 20px; padding-right: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rm-me::before { animation: none; }
+  .rm-open, .rm-bus, .rm-badge { transition: none; }
+}
