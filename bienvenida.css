@@ -1,0 +1,70 @@
+/* Bienvenida y Modo demo (operación 13). Mismos colores y tema claro/oscuro del resto de la app. */
+html.bv-abierto { overflow: hidden; }
+
+/* Botón en la cabecera */
+.bv-boton {
+  display: inline-flex; align-items: center; gap: 7px; margin: 0 0 0 8px; min-height: 40px; padding: 0 14px;
+  border: 0; border-radius: 14px; cursor: pointer; vertical-align: top;
+  background: var(--hero-soft); color: var(--hero-ink); font: 700 .86rem var(--font-body);
+  transition: background-color .2s, transform .15s;
+}
+.bv-boton i { width: 9px; height: 9px; border-radius: 50%; background: #ffd84d; }
+.bv-boton:hover { background: rgba(255, 255, 255, .3); }
+.bv-boton:active { transform: scale(.95); }
+.bv-boton:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+@media (max-width: 420px) { .bv-boton { margin: 10px 0 0; display: flex; width: fit-content; } }
+
+/* Ventana (hoja desde abajo en el celular, centrada en pantallas grandes) */
+.bv-fondo {
+  position: fixed; inset: 0; z-index: 95; display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(7, 10, 29, .65);
+}
+.bv-fondo[hidden] { display: none; }
+.bv-hoja {
+  display: flex; flex-direction: column; width: 100%; max-width: 560px; max-height: 92vh; max-height: 92dvh;
+  background: var(--surface); color: var(--ink); font-family: var(--font-body);
+  border-radius: 22px 22px 0 0; padding: 22px 18px calc(16px + env(safe-area-inset-bottom, 0px));
+}
+.bv-hoja:focus { outline: none; }
+.bv-hoja h2 { font: 800 1.3rem/1.2 var(--font-display); }
+.bv-cuerpo { flex: 1; min-height: 0; overflow-y: auto; margin: 12px -4px 0; padding: 0 4px; }
+.bv-logo { margin-bottom: 4px; }
+.bv-lema { margin: 4px 0 14px; color: var(--muted); font-size: 1rem; }
+
+.bv-puntos, .bv-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.bv-puntos li { display: grid; gap: 1px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.bv-puntos b { font: 800 .98rem var(--font-display); }
+.bv-puntos span { color: var(--muted); font-size: .86rem; }
+
+.bv-estado { margin: 14px 0 0; padding: 11px 13px; border-radius: 12px; font-size: .9rem; line-height: 1.4; }
+.bv-estado.bv-aviso { background: var(--warn-bg); color: var(--warn); }
+.bv-estado.bv-ok { background: var(--ok-bg); color: var(--ok); }
+.bv-cuerpo > .bv-estado:first-child { margin-top: 0; }
+
+.bv-lista { margin-top: 12px; }
+.bv-lista li { padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.bv-q { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.bv-q b { font: 800 .95rem var(--font-display); }
+.bv-lista p { margin: 4px 0 0; color: var(--muted); font-size: .85rem; line-height: 1.4; }
+.bv-lista p b { color: var(--ink); }
+.bv-et { flex: none; padding: 2px 9px; border-radius: 999px; font: 700 .72rem var(--font-body); white-space: nowrap; }
+.bv-et.bv-real { background: var(--ok-bg); color: var(--ok); }
+.bv-et.bv-sim { background: var(--warn-bg); color: var(--warn); }
+.bv-et.bv-ej { background: var(--accent-bg); color: var(--accent); }
+.bv-et.bv-cel { background: var(--surface); color: var(--muted); border: 1px solid var(--line); }
+.bv-pie { margin: 12px 0 0; color: var(--muted); font-size: .84rem; }
+.bv-pie b { color: var(--ink); }
+
+.bv-acciones { display: grid; gap: 8px; margin-top: 14px; }
+.bv-prim, .bv-sec { min-height: 48px; border-radius: 14px; cursor: pointer; font: 800 .98rem var(--font-body); transition: transform .15s, border-color .2s; }
+.bv-prim { border: 0; background: var(--accent); color: var(--accent-ink); }
+.bv-sec { border: 1px solid var(--line); background: transparent; color: var(--ink); font-weight: 700; }
+.bv-sec:hover { border-color: var(--accent); }
+.bv-prim:active, .bv-sec:active { transform: scale(.98); }
+.bv-prim:focus-visible, .bv-sec:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
+
+@media (min-width: 640px) {
+  .bv-fondo { align-items: center; }
+  .bv-hoja { border-radius: 22px; padding-bottom: 18px; }
+}
+@media (prefers-reduced-motion: reduce) { .bv-boton, .bv-prim, .bv-sec { transition: none; } }

@@ -1,0 +1,57 @@
+{
+  "rules": {
+    "buses": {
+      ".read": true,
+      "$id": {
+        ".write": "$id.matches(/^[a-z0-9]{8,20}$/)",
+        ".validate": "newData.hasChildren(['ruta', 'lat', 'lng', 't'])",
+        "ruta": {
+          ".validate": "newData.isString() && newData.val().length <= 8"
+        },
+        "nombre": {
+          ".validate": "newData.isString() && newData.val().length <= 24"
+        },
+        "lat": {
+          ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+        },
+        "lng": {
+          ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+        },
+        "t": {
+          ".validate": "newData.isNumber()"
+        },
+        "parada": {
+          ".validate": "newData.isNumber()"
+        },
+        "rumbo": {
+          ".validate": "newData.isNumber()"
+        },
+        "vel": {
+          ".validate": "newData.isNumber()"
+        },
+        "$otro": {
+          ".validate": false
+        }
+      }
+    },
+    "reportes": {
+      ".read": true,
+      "$id": {
+        ".write": "$id.matches(/^[a-z0-9]{8,20}-[a-z0-9]{1,8}-(retraso|lleno|accidente)$/)",
+        ".validate": "newData.hasChildren(['ruta', 'tipo', 't'])",
+        "ruta": {
+          ".validate": "newData.isString() && newData.val().length <= 8"
+        },
+        "tipo": {
+          ".validate": "newData.isString() && (newData.val() == 'retraso' || newData.val() == 'lleno' || newData.val() == 'accidente')"
+        },
+        "t": {
+          ".validate": "newData.isNumber()"
+        },
+        "$otro": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}

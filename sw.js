@@ -1,6 +1,6 @@
 /* Service worker de Rutmovil: deja la app funcionando sin internet.
    Si cambias archivos de la página, sube el número de VERSION para que se actualice. */
-var VERSION = 'rutmovil-v8';
+var VERSION = 'rutmovil-v22';
 
 var ARCHIVOS = [
   './',
@@ -9,6 +9,24 @@ var ARCHIVOS = [
   'script.js',
   'map.css',
   'map.js',
+  'plan.css',
+  'plan.js',
+  'tarifas.css',
+  'tarifas.js',
+  'horarios.css',
+  'horarios.js',
+  'rutas-extra.js',
+  'mapa-todas.css',
+  'mapa-todas.js',
+  'vivo.js',
+  'vivo-mapa.css',
+  'vivo-mapa.js',
+  'conductor.css',
+  'conductor.js',
+  'reportes.css',
+  'reportes.js',
+  'bienvenida.css',
+  'bienvenida.js',
   'nicaragua.js',
   'manifest.webmanifest',
   'favicon.svg',

@@ -1,0 +1,17 @@
+/* Estilos de los horarios (operación 06). Usa los colores del tema claro y oscuro de style.css. */
+.horario { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.horario summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: .92rem; }
+.horario summary strong { color: var(--ink); }
+.horario summary:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; border-radius: 6px; }
+.hr-cuerpo { display: grid; gap: 6px; margin-top: 10px; }
+.hr-info { color: var(--muted); font-size: .85rem; margin-bottom: 4px; }
+.hr-nota { color: var(--muted); font-size: .78rem; margin-top: 6px; }
+.hr-fila { display: grid; grid-template-columns: 76px 1fr; gap: 8px; align-items: start; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.hr-fila b { white-space: nowrap; font: 700 .8rem var(--font-mono); color: var(--muted); padding-top: 4px; }
+.hr-horas { display: flex; flex-wrap: wrap; gap: 4px; }
+.hr-h { font: 600 .8rem var(--font-mono); padding: 3px 7px; border-radius: 8px; background: var(--surface-2, var(--accent-bg)); color: var(--ink); }
+.hr-h.pasado { opacity: .4; }
+.hr-h.sig { background: var(--accent); color: var(--accent-ink); opacity: 1; }
+.hr-h.tarde { background: var(--warn-bg); color: var(--warn); }
+.hr-h.tarde.sig { background: var(--accent); color: var(--accent-ink); }
+.hr-h sup { font-size: .62rem; margin-left: 1px; }

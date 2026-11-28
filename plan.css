@@ -1,0 +1,113 @@
+/* Planificador de viaje de Rutmovil. Todas las clases empiezan con "pl-" para no chocar con style.css ni map.css. */
+
+html.pl-abierto { overflow: hidden; }
+
+.pl {
+  position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column;
+  background: var(--bg); color: var(--ink); font-family: var(--font-body);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pl[hidden] { display: none; }
+
+.pl-top {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  background: var(--hero-bg); color: var(--hero-ink);
+}
+.pl-top h2 { flex: 1; font: 800 1.25rem var(--font-display); }
+.pl-cerrar {
+  width: 38px; height: 38px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center;
+  background: var(--hero-soft); color: #ffffff; cursor: pointer; transition: background-color .2s, transform .15s;
+}
+.pl-cerrar:hover { background: rgba(255, 255, 255, .3); }
+.pl-cerrar:active { transform: scale(.88); }
+.pl-cerrar svg, .pl-swap svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.pl-cuerpo {
+  flex: 1; overflow-y: auto; padding: 18px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  max-width: 640px; width: 100%; margin: 0 auto;
+}
+
+.pl-form { display: grid; grid-template-columns: 1fr 44px; gap: 6px 10px; align-items: end; }
+.pl-campo { display: grid; gap: 6px; grid-column: 1; }
+.pl-campo label { font-size: .8rem; font-weight: 600; color: var(--muted); letter-spacing: .03em; text-transform: uppercase; }
+.pl-campo select {
+  width: 100%; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px;
+  font: inherit; font-weight: 600; transition: border-color .2s, box-shadow .2s;
+}
+.pl-campo select:hover, .pl-campo select:focus-visible { border-color: var(--accent); }
+.pl-swap {
+  grid-column: 2; grid-row: 1 / span 2; align-self: center; width: 44px; height: 44px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--surface); color: var(--accent); cursor: pointer;
+  display: grid; place-items: center; transition: transform .25s, border-color .2s;
+}
+.pl-swap:hover { border-color: var(--accent); }
+.pl-swap:active { transform: rotate(180deg) scale(.92); }
+.pl-ir {
+  grid-column: 1 / -1; margin-top: 8px; min-height: 50px; border: 0; border-radius: 14px; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); font: 700 1rem var(--font-body);
+  transition: transform .15s, opacity .2s;
+}
+.pl-ir:active { transform: scale(.98); }
+.pl-ir:disabled { opacity: .5; cursor: not-allowed; }
+
+.pl-cerrar:focus-visible, .pl-swap:focus-visible, .pl-ir:focus-visible, .pl-campo select:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
+
+.pl-res { margin-top: 20px; display: grid; gap: 12px; }
+.pl-aviso { padding: 12px 14px; border-radius: 12px; background: var(--warn-bg); color: var(--warn); font-weight: 600; }
+.pl-punto { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 8px; }
+.pl-punto small { color: var(--muted); font-weight: 600; letter-spacing: .03em; text-transform: uppercase; font-size: .72rem; }
+.pl-punto strong { font: 800 1.05rem var(--font-display); }
+.pl-punto p { color: var(--muted); font-size: .92rem; }
+.pl-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pl-chip {
+  font: 700 .85rem var(--font-mono); padding: 4px 10px; border-radius: 999px;
+  background: var(--accent-bg); color: var(--accent);
+}
+.pl-chip.pl-comun { background: var(--ok-bg); color: var(--ok); }
+.pl-comunes { background: var(--ok-bg); border-radius: 14px; padding: 14px; display: grid; gap: 8px; }
+.pl-comunes h3 { font: 800 1rem var(--font-display); color: var(--ok); }
+.pl-comunes p { color: var(--ink); font-size: .92rem; }
+
+/* Ruta directa (operación 02) */
+.pl-resumen { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 6px; }
+.pl-resumen small { color: var(--muted); font-weight: 600; letter-spacing: .03em; text-transform: uppercase; font-size: .72rem; }
+.pl-resumen p { font-size: .95rem; }
+.pl-opcion { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 12px; }
+.pl-opcion.pl-mejor { border-color: var(--ok); box-shadow: 0 0 0 1px var(--ok); }
+.pl-opcion header { display: flex; align-items: center; gap: 10px; }
+.pl-ruta { font: 800 1.2rem var(--font-mono); padding: 4px 12px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); }
+.pl-badge { font-size: .75rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--ok-bg); color: var(--ok); }
+.pl-total { margin-left: auto; font: 800 1.2rem var(--font-display); }
+.pl-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pl-meta div { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; }
+.pl-meta dt { color: var(--muted); font-size: .72rem; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }
+.pl-meta dd { font: 700 1rem var(--font-mono); margin-top: 2px; }
+.pl-opcion summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: .92rem; }
+.pl-opcion summary:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; border-radius: 6px; }
+.pl-lista { margin: 10px 0 0 4px; padding-left: 18px; display: grid; gap: 6px; color: var(--muted); }
+.pl-lista .pl-extremo { color: var(--ink); font-weight: 700; }
+.pl-nota { color: var(--muted); font-size: .82rem; }
+
+/* Transbordo (operación 03) */
+.pl-opcion header { flex-wrap: wrap; }
+.pl-flecha { font: 800 1.1rem var(--font-display); color: var(--muted); }
+.pl-meta dd.pl-texto { font: 700 .85rem var(--font-body); line-height: 1.25; }
+
+/* Mapa (operación 04) */
+.pl-mapa {
+  justify-self: start; min-height: 36px; padding: 0 12px; border: 1px dashed var(--line); border-radius: 10px; cursor: pointer;
+  background: transparent; color: var(--accent); font: 600 .85rem var(--font-body);
+}
+.pl-mapa:hover { border-color: var(--accent); }
+.pl-mapa:focus-visible, .pl-ver:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
+.pl-ver {
+  min-height: 44px; border: 0; border-radius: 12px; cursor: pointer;
+  background: var(--accent-bg); color: var(--accent); font: 700 .95rem var(--font-body);
+  transition: transform .15s;
+}
+.pl-ver:active { transform: scale(.98); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-cerrar, .pl-swap, .pl-ir, .pl-campo select { transition: none; }
+}

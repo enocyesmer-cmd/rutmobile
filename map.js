@@ -276,6 +276,7 @@
   var sel = null;
   var selBus = null;
   var selParada = {};
+  var ocultas = {};   // rutas apagadas desde la leyenda de mapa-todas.js (id -> true)
   var usuario = null;
   var marcaUsuario = null;
   var circuloUsuario = null;
@@ -299,6 +300,8 @@
   var avisoTimer = null;
 
   function color(ruta) {
+    if (ruta.color) return ruta.color;   // las rutas agregadas en rutas-extra.js traen su propio color
+
     var i = datos().rutas.indexOf(ruta);
 
     return COLORES[(i < 0 ? 0 : i) % COLORES.length];
@@ -833,6 +836,18 @@
 
     Object.keys(lineas).forEach(function (id) {
       var par = lineas[id];
+
+      // Una ruta apagada en la leyenda se quita del mapa y vuelve igual cuando se enciende.
+      if (ocultas[id]) {
+        [par.casing, par.linea].forEach(function (capa) { if (capaLineas.hasLayer(capa)) capaLineas.removeLayer(capa); });
+        return;
+      }
+
+      if (!capaLineas.hasLayer(par.linea)) {
+        capaLineas.addLayer(par.casing);
+        capaLineas.addLayer(par.linea);
+      }
+
       var tono = info[id].color;
       var activa = sel === id;
       var apagada = sel && !activa;
@@ -868,6 +883,7 @@
 
       if (!inf) return;
       if (sel && sel !== ruta.id) return;
+      if (ocultas[ruta.id]) return;
 
       ruta.stops.forEach(function (nombre, indice) {
         var extremo = indice === 0 || indice === ruta.stops.length - 1;
@@ -934,6 +950,15 @@
       var inf = info[ruta.id];
 
       if (!inf) return;
+
+      if (ocultas[ruta.id]) {
+        ruta.buses.forEach(function (b) {
+          var oculto = marcadores[ruta.id + '|' + b.id];
+
+          if (oculto && capaBuses.hasLayer(oculto)) capaBuses.removeLayer(oculto);
+        });
+        return;
+      }
 
       ruta.buses.forEach(function (bus) {
         var clave = ruta.id + '|' + bus.id;
@@ -1302,6 +1327,8 @@
 
     sel = id;
     selBus = (opciones && opciones.bus) || null;
+
+    if (id) delete ocultas[id];   // elegir una ruta apagada la vuelve a mostrar
 
     if (id) {
       var ruta = rutaPorId(id);
@@ -1803,9 +1830,240 @@
     elegirRuta(enlace.getAttribute('data-ruta'), { parada: Number(enlace.getAttribute('data-parada')) });
   });
 
+  // ---- viaje en el mapa (operación 04) ----
+  // Dibuja sobre el mapa el trayecto que calcula el planificador (plan.js) y deja tocar el mapa para elegir un punto.
+  // Usa los mismos recorridos por calles de las rutas; no cambia nada de lo de arriba.
+  var capaViaje = null;
+  var viaje = null;     // { tramos: [{ruta, desde, hasta}], puntos: [{tipo, nombre, lat, lng}], caminatas: [[[lat,lng],[lat,lng]]], titulo, rutas, total }
+  var elegir = null;    // { mensaje, alElegir, alCancelar } mientras se espera un toque en el mapa
+
+  var cajaViaje = document.createElement('div');
+
+  cajaViaje.className = 'rm-viaje';
+  cajaViaje.hidden = true;
+  cajaViaje.innerHTML =
+    '<div class="rm-viaje-info"><strong id="rm-viaje-t"></strong><span id="rm-viaje-s"></span></div>' +
+    '<button type="button" class="rm-viaje-b" id="rm-viaje-cambiar">Cambiar</button>' +
+    '<button type="button" class="rm-viaje-b rm-viaje-x" id="rm-viaje-quitar" aria-label="Quitar el viaje del mapa">' + iconos.cerrar + '</button>';
+  panel.appendChild(cajaViaje);
+
+  var cajaElegir = document.createElement('div');
+
+  cajaElegir.className = 'rm-elegir';
+  cajaElegir.hidden = true;
+  cajaElegir.setAttribute('role', 'status');
+  cajaElegir.innerHTML = '<span id="rm-elegir-t"></span><button type="button" class="rm-viaje-b" id="rm-elegir-no">Cancelar</button>';
+  panel.appendChild(cajaElegir);
+
+  // Espera (con revisiones cortas) a que se cumpla una condición; responde true o false si se acaba el tiempo.
+  function esperar(condicion, ms) {
+    return new Promise(function (resolver) {
+      var inicio = Date.now();
+      var reloj = setInterval(function () {
+        var listo = condicion();
+
+        if (listo || Date.now() - inicio > ms) {
+          clearInterval(reloj);
+          resolver(!!listo);
+        }
+      }, 150);
+
+      if (condicion()) { clearInterval(reloj); resolver(true); }
+    });
+  }
+
+  // Parte del recorrido por calles de una ruta que va de la parada "desde" a la parada "hasta".
+  function trozoDeRuta(id, desde, hasta) {
+    var inf = info[id];
+    var d0 = inf.dp[desde];
+    var d1 = inf.dp[hasta];
+    var a = puntoEn(inf, d0);
+    var b = puntoEn(inf, d1);
+    var puntos = [[a.lat, a.lng]];
+
+    if (d1 > d0) {
+      for (var k = 0; k < inf.c.length; k++) {
+        if (inf.cum[k] > d0 && inf.cum[k] < d1) puntos.push(inf.c[k]);
+      }
+    }
+
+    puntos.push([b.lat, b.lng]);
+
+    return puntos;
+  }
+
+  function dibujarViaje() {
+    var L = window.L;
+
+    if (!viaje || !map) return;
+
+    if (!map.getPane('rmViaje')) map.createPane('rmViaje').style.zIndex = 410;
+    if (!capaViaje) capaViaje = L.layerGroup().addTo(map);
+
+    capaViaje.clearLayers();
+
+    var oscuro = esOscuro();
+    var todos = [];
+    var primero = viaje.tramos[0];
+
+    // La ruta del primer tramo queda resaltada (con su tarjeta de llegadas) y las demás se atenúan.
+    elegirRuta(primero.ruta, { parada: primero.desde });
+
+    viaje.tramos.forEach(function (tramo) {
+      var puntos = trozoDeRuta(tramo.ruta, tramo.desde, tramo.hasta);
+
+      todos = todos.concat(puntos);
+      capaViaje.addLayer(L.polyline(puntos, {
+        pane: 'rmViaje', color: oscuro ? '#0a0f33' : '#ffffff', weight: 12, opacity: 0.95,
+        lineCap: 'round', lineJoin: 'round', interactive: false
+      }));
+      capaViaje.addLayer(L.polyline(puntos, {
+        pane: 'rmViaje', color: info[tramo.ruta].color, weight: 7,
+        lineCap: 'round', lineJoin: 'round', interactive: false
+      }));
+    });
+
+    (viaje.caminatas || []).forEach(function (tramo) {
+      todos.push(tramo[0], tramo[1]);
+      capaViaje.addLayer(L.polyline(tramo, {
+        pane: 'rmViaje', color: oscuro ? '#8b96ff' : '#1423ff', weight: 4, dashArray: '2 9',
+        lineCap: 'round', interactive: false
+      }));
+    });
+
+    var tonos = { origen: '#0b7f47', destino: '#d92b2b', cambio: '#e8890c' };
+    var textos = { origen: 'Origen: ', destino: 'Destino: ', cambio: 'Cambio de bus: ' };
+
+    (viaje.puntos || []).forEach(function (punto) {
+      var marca = L.circleMarker([punto.lat, punto.lng], {
+        pane: 'rmViaje', radius: 9, color: '#ffffff', weight: 3, fillColor: tonos[punto.tipo] || '#1423ff', fillOpacity: 1
+      });
+
+      marca.bindTooltip(esc((textos[punto.tipo] || '') + punto.nombre), {
+        direction: 'top', offset: [0, -10], className: 'rm-tip', permanent: true
+      });
+      capaViaje.addLayer(marca);
+      todos.push([punto.lat, punto.lng]);
+    });
+
+    $('rm-viaje-t').textContent = 'Tu viaje' + (viaje.total ? ' · ~' + viaje.total + ' min' : '');
+    $('rm-viaje-s').textContent = (viaje.titulo || '') + (viaje.rutas ? ' · ruta ' + viaje.rutas : '');
+    cajaViaje.hidden = false;
+
+    map.fitBounds(L.latLngBounds(todos), { paddingTopLeft: [28, 150], paddingBottomRight: [28, 270], maxZoom: 16 });
+  }
+
+  function verViaje(spec) {
+    if (!spec || !spec.tramos || !spec.tramos.length) return;
+
+    cancelarElegir(false);
+    viaje = spec;
+
+    if (panel.hidden) abrir();
+
+    asegurarMapa().then(function () {
+      map.invalidateSize();
+
+      if (modo !== 'rutas') cambiarModo('rutas');
+
+      cargarRecorridos();
+
+      return esperar(function () {
+        return spec.tramos.every(function (tramo) { return info[tramo.ruta]; });
+      }, 25000).then(function (listo) {
+        if (viaje !== spec) return;
+
+        if (listo) dibujarViaje(); else aviso('No se pudo dibujar el viaje: los recorridos no terminaron de cargar.');
+      });
+    }).catch(function () {});
+  }
+
+  function quitarViaje() {
+    viaje = null;
+    cajaViaje.hidden = true;
+
+    if (capaViaje) capaViaje.clearLayers();
+    if (map) elegirRuta(null);
+  }
+
+  function alToque(evento) {
+    var hecho = elegir;
+
+    if (!hecho) return;
+
+    cancelarElegir(false);
+
+    if (hecho.alElegir) hecho.alElegir({ lat: evento.latlng.lat, lng: evento.latlng.lng });
+  }
+
+  // Si "avisar" es true se llama a alCancelar (por ejemplo para volver al planificador).
+  function cancelarElegir(avisar) {
+    var previo = elegir;
+
+    elegir = null;
+    cajaElegir.hidden = true;
+
+    if (map) {
+      map.off('click', alToque);
+      map.getContainer().classList.remove('rm-eligiendo');
+    }
+
+    if (avisar && previo && previo.alCancelar) previo.alCancelar();
+  }
+
+  function elegirPunto(opciones) {
+    cancelarElegir(false);
+    elegir = opciones;
+    $('rm-elegir-t').textContent = opciones.mensaje || 'Toca el mapa para elegir un punto';
+    cajaElegir.hidden = false;
+
+    if (panel.hidden) abrir();
+
+    asegurarMapa().then(function () {
+      if (elegir !== opciones) return;
+
+      map.invalidateSize();
+      map.getContainer().classList.add('rm-eligiendo');
+      map.on('click', alToque);
+    }).catch(function () {
+      cancelarElegir(true);
+    });
+  }
+
+  $('rm-viaje-cambiar').addEventListener('click', function () {
+    if (window.RutmovilPlan) window.RutmovilPlan.abrir();
+  });
+  $('rm-viaje-quitar').addEventListener('click', quitarViaje);
+  $('rm-elegir-no').addEventListener('click', function () { cancelarElegir(true); });
+  $('rm-close').addEventListener('click', function () { cancelarElegir(true); });
+  window.addEventListener('popstate', function () {
+    if (panel.hidden && elegir) cancelarElegir(true);
+  });
+  // ---- fin viaje en el mapa ----
+
   // Permite que las tarjetas de Expresos abran el mapa en ese expreso.
   window.RutmovilMapa = {
     abrir: abrir,
+    paradas: PARADAS,
+    verViaje: verViaje,
+    // Para la leyenda de mapa-todas.js: qué se está viendo, y apagar o encender rutas.
+    estado: function () { return { modo: modo, sel: sel, ocultas: JSON.parse(JSON.stringify(ocultas)) }; },
+    elegirRuta: function (id) { if (map && modo === 'rutas') elegirRuta(id); },
+    ocultarRutas: function (ids) {
+      ocultas = {};
+      (ids || []).forEach(function (id) { ocultas[id] = true; });
+
+      if (map && modo === 'rutas') {
+        estilos();
+        moverBuses();
+      }
+    },
+    quitarViaje: quitarViaje,
+    elegirPunto: elegirPunto,
+    // Solo lectura, para vivo-mapa.js (buses reales): el mapa de Leaflet, la capa de buses y qué se está viendo ahora.
+    interno: function () {
+      return { map: map, capaBuses: capaBuses, modo: modo, sel: sel, ocultas: ocultas, abierto: !panel.hidden, color: color };
+    },
     verExpreso: function (id) {
       pendiente = { modo: 'expresos', id: id };
 

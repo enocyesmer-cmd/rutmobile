@@ -1,0 +1,28 @@
+/* Buses reales en el mapa (operación 10). Se ven distintos a los simulados: anillo verde y etiqueta "EN VIVO".
+   Usa las variables de color de la app, así se ve bien en modo claro y oscuro. */
+.rm-bus.rm-real .rm-badge { border-color: #0ca678; box-shadow: 0 3px 10px rgba(0, 0, 0, .4), 0 0 0 4px rgba(12, 166, 120, .45); }
+.rm-bus.rm-real .rm-arrow.rm-sin-rumbo { display: none; }
+.rm-bus.rm-real .rm-tag {
+  position: absolute; left: 50%; bottom: -13px; transform: translateX(-50%); white-space: nowrap;
+  display: flex; align-items: center; gap: 4px; padding: 1px 6px 1px 5px; border-radius: 999px;
+  background: #0b7f47; color: #fff; font: 800 8.5px var(--font-body); letter-spacing: .04em;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+}
+.rm-bus.rm-real .rm-tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #7dffc0; animation: rmRealLatido 1.4s ease-in-out infinite; }
+@keyframes rmRealLatido { 50% { opacity: .35; } }
+
+/* Aviso dentro del panel inferior del mapa */
+.rm-real { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--ok-bg); color: var(--ok); font-size: .88rem; }
+.rm-real[hidden] { display: none; }
+.rm-real b { font-weight: 800; }
+.rm-real ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+.rm-real li { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+.rm-real .rm-real-ruta {
+  flex: none; min-width: 34px; text-align: center; padding: 2px 6px; border-radius: 8px;
+  background: var(--c, var(--accent)); color: #fff; font: 700 11px var(--font-mono);
+}
+.rm-real .rm-real-hace { margin-left: auto; color: var(--muted); font-size: .78rem; white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rm-bus.rm-real .rm-tag::before { animation: none; }
+}

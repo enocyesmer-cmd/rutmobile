@@ -1,0 +1,70 @@
+/* Reportes de pasajeros (operación 12). Mismos colores y tema claro/oscuro del resto de la app. */
+:root {
+  --rep-mal: #a61e1e; --rep-mal-bg: #fde0e0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --rep-mal: #ff8f8f; --rep-mal-bg: #4a1517; }
+}
+:root[data-theme="dark"] { --rep-mal: #ff8f8f; --rep-mal-bg: #4a1517; }
+
+/* Etiquetas en la tarjeta de la ruta */
+.rep-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.rep-chips[hidden] { display: none; }
+.rep-chip { padding: 2px 9px; border-radius: 999px; font: 700 .72rem var(--font-body); white-space: nowrap; }
+.rep-chip.rep-accidente, .rep-lista li.rep-accidente b { background: var(--rep-mal-bg); color: var(--rep-mal); }
+.rep-chip.rep-retraso { background: var(--warn-bg); color: var(--warn); }
+.rep-chip.rep-lleno { background: var(--accent-bg); color: var(--accent); }
+.rep-lista li b { padding: 1px 7px; border-radius: 8px; }
+.rep-lista li.rep-retraso b { background: var(--warn-bg); color: var(--warn); }
+.rep-lista li.rep-lleno b { background: var(--accent-bg); color: var(--accent); }
+
+/* Detalle dentro de la tarjeta abierta y del mapa */
+.rep-lista { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; font-size: .84rem; color: var(--ink); }
+.rep-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.rep-mapa { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); }
+.rep-mapa[hidden] { display: none; }
+.rep-mapa .rep-lista { margin-top: 8px; }
+.rep-mapa-h { display: flex; align-items: baseline; gap: 8px; font-size: .88rem; }
+.rep-mapa-h span { color: var(--muted); font-size: .8rem; }
+.rep-btn-mapa {
+  margin-top: 10px; width: 100%; min-height: 40px; padding: 8px 12px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 700 .86rem var(--font-body);
+}
+.rep-btn-mapa:hover { border-color: var(--accent); }
+
+/* Ventana para reportar (hoja desde abajo, por encima del mapa y del planificador) */
+.rep-fondo {
+  position: fixed; inset: 0; z-index: 90; display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(7, 10, 29, .6);
+}
+.rep-fondo[hidden] { display: none; }
+.rep-hoja {
+  width: 100%; max-width: 480px; background: var(--surface); color: var(--ink); font-family: var(--font-body);
+  border-radius: 20px 20px 0 0; padding: 20px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+}
+.rep-hoja h2 { font: 800 1.2rem var(--font-display); }
+.rep-ruta { margin: 2px 0 14px; color: var(--muted); font-size: .88rem; }
+.rep-opciones { display: grid; gap: 8px; }
+.rep-op {
+  display: grid; gap: 2px; text-align: left; padding: 12px 14px; border-radius: 12px; cursor: pointer; min-height: 56px;
+  border: 2px solid var(--line); background: var(--surface-2); color: var(--ink); font: inherit;
+  transition: border-color .2s, transform .15s;
+}
+.rep-op b { font: 800 1rem var(--font-display); }
+.rep-op span { color: var(--muted); font-size: .84rem; }
+.rep-op:hover:not(:disabled) { border-color: var(--accent); }
+.rep-op:active:not(:disabled) { transform: scale(.98); }
+.rep-op:disabled { opacity: .55; cursor: default; }
+.rep-op.rep-accidente b { color: var(--rep-mal); }
+.rep-op.rep-retraso b { color: var(--warn); }
+.rep-estado { min-height: 1.3em; margin-top: 12px; font-weight: 600; font-size: .9rem; color: var(--ok); }
+.rep-nota { margin-top: 4px; color: var(--muted); font-size: .8rem; }
+.rep-cancelar {
+  margin-top: 12px; width: 100%; min-height: 44px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--line); background: transparent; color: var(--ink); font: 700 .92rem var(--font-body);
+}
+@media (min-width: 640px) {
+  .rep-fondo { align-items: center; }
+  .rep-hoja { border-radius: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { .rep-op { transition: none; } }
